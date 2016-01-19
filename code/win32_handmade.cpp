@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdint.h> // defines precise compiler-independent sizes of primitive types
+#include <xinput.h> // xbox 360 controller
 
 #define internal        static
 #define local_persist   static
@@ -32,11 +33,46 @@ struct win32_window_dimension
     uint16 Height;
 };
 
+// XInputGetState (dynamic DLL binding without linking)
+// this ensures we can use the XInput functions without requiring the DLL during execution
+// we declared a stub version of each function in case we can't find any functions
+#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
+typedef X_INPUT_GET_STATE(x_input_get_state);
+X_INPUT_GET_STATE(XInputGetStateStub)
+{
+    return 0;
+}
+global_variable x_input_get_state *XInputGetState_ = XInputGetStateStub;
+
+// XInputSetState (dynamic DLL binding without linking)
+#define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration)
+typedef X_INPUT_SET_STATE(x_input_set_state);
+X_INPUT_SET_STATE(XInputSetStateStub)
+{
+    return 0;
+}
+global_variable x_input_set_state *XInputSetState_ = XInputSetStateStub;
+
+#define XInputGetState XInputGetState_
+#define XInputSetState XInputSetState_
+
+
 global_variable bool GlobalRunning;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 
 
-win32_window_dimension Win32GetWindowDimension(HWND Window)
+// tries to find XInput function definition from DLL if present
+internal void Win32LoadXInput()
+{
+    HMODULE XInputLibrary = LoadLibrary("xinput1_3.dll");
+    if(XInputLibrary)
+    {
+        XInputGetState = (x_input_get_state*)GetProcAddress(XInputLibrary, "XInputGetState");
+        XInputSetState = (x_input_set_state*)GetProcAddress(XInputLibrary, "XInputSetState");
+    }
+}
+
+internal win32_window_dimension Win32GetWindowDimension(HWND Window)
 {
     win32_window_dimension Result;
     
@@ -165,8 +201,9 @@ int CALLBACK WinMain(
 	LPSTR cmdLine,
 	int cmdShow)
 {
-	// MessageBox(0, "Sup G", "Joey", MB_OK | MB_ICONINFORMATION);
-	
+	// MessageBox(0, "Sup G", "Joey", MB_OK | MB_ICONINFORMATION);	
+    Win32LoadXInput();
+    
 	WNDCLASS WindowClass = {};
     
     Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
@@ -212,17 +249,60 @@ int CALLBACK WinMain(
                     TranslateMessage(&Message);
 					DispatchMessage(&Message);
                 }
-
+                
+                // poll xbox 360 controller(s)
+                for(DWORD i = 0; i < XUSER_MAX_COUNT; ++i)
                 {
-                    RenderWeirdGradiant(GlobalBackBuffer, XOffset++, YOffset++);
-                    HDC DeviceContext = GetDC(Window);
-                    
-                    win32_window_dimension Dimension = Win32GetWindowDimension(Window);
-                    
-                    Win32DisplayBufferInWindow(DeviceContext, Dimension.Width, Dimension.Height, GlobalBackBuffer);
-                    
-                    ReleaseDC(Window, DeviceContext);
+                    XINPUT_STATE ControllerState;
+                    if(XInputGetState(i, &ControllerState) == ERROR_SUCCESS)
+                    {
+                        // the controller is plugged in
+                        XINPUT_GAMEPAD *Pad = &ControllerState.Gamepad;
+                        
+                        bool Up            = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
+                        bool Down          = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
+                        bool Left          = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
+                        bool Right         = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
+                        bool Start         = (Pad->wButtons & XINPUT_GAMEPAD_START);
+                        bool Back          = (Pad->wButtons & XINPUT_GAMEPAD_BACK);
+                        bool LeftShoulder  = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+                        bool RightShoulder = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+                        bool AButton       = (Pad->wButtons & XINPUT_GAMEPAD_A);
+                        bool BButton       = (Pad->wButtons & XINPUT_GAMEPAD_B);
+                        bool XButton       = (Pad->wButtons & XINPUT_GAMEPAD_X);
+                        bool YButton       = (Pad->wButtons & XINPUT_GAMEPAD_Y);
+                        
+                        int16 StickX = Pad->sThumbLX;
+                        int16 StickY = Pad->sThumbLY;
+                        
+                        if(AButton)
+                        {
+                            ++YOffset;
+                            
+                        }
+                        if(BButton)
+                        {
+                            XINPUT_VIBRATION Vibration;
+                            Vibration.wLeftMotorSpeed = 65535;
+                            Vibration.wRightMotorSpeed = 65535;
+                            XInputSetState(i, &Vibration);
+                        }
+                    }
+                    else
+                    {
+                        // the controller is not available
+                    }
                 }
+
+                
+                RenderWeirdGradiant(GlobalBackBuffer, XOffset++, YOffset);
+                HDC DeviceContext = GetDC(Window);
+                
+                win32_window_dimension Dimension = Win32GetWindowDimension(Window);
+                
+                Win32DisplayBufferInWindow(DeviceContext, Dimension.Width, Dimension.Height, GlobalBackBuffer);
+                
+                ReleaseDC(Window, DeviceContext);                
 			}
 		}
 		else
