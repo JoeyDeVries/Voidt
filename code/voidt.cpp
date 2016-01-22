@@ -42,21 +42,35 @@ internal void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz)
     }        
 }
 
-internal void GameUpdateAndRender(game_input *input,
+internal void GameUpdateAndRender(game_memory *memory,
+                                  game_input *input,
                                   game_offscreen_buffer *screenBuffer, 
                                   game_sound_output_buffer *soundBuffer)
 {
-    local_persist int xOffset = 0;
-    local_persist int yOffset = 0;
-    local_persist int toneHz = 256;
+    game_state *gameState = (game_state*)memory->PermanentStorage;
+    Assert(sizeof(game_state) <= memory->PermanentStorageSize); 
+    
+    if(!memory->IsInitialized)
+    {        
+        char *fileName = __FILE__;
+        debug_read_file_result file = DEBUGPlatformReadEntireFile(fileName);
+        
+        if(file.Contents)
+        {
+            DEBUGPlatformWriteEntireFile("W:/data/test.out", file.ContentSize, file.Contents);
+            DEBUGPlatformFreeFileMemory(file.Contents);
+        }
+        
+        gameState->ToneHz = 256;
+    }
     
     
     game_controller_input *input0 = &input->Controllers[0];
     if(input0->IsAnalog)
     {
         // analog movement tuning
-        toneHz = 412 + (int)(240.0f * input0->EndY);
-        xOffset += (int)4.0f * input0->EndX;
+        gameState->ToneHz = 412 + (int)(240.0f * input0->EndY);
+        gameState->XOffset += (int)4.0f * input0->EndX;
     }
     else
     {
@@ -65,9 +79,9 @@ internal void GameUpdateAndRender(game_input *input,
     
     if(input0->Down.EndedDown)
     {
-        yOffset += 1;
+        gameState->YOffset += 1;
     }
     
-    GameOutputSound(soundBuffer, toneHz);
-    GameRender(screenBuffer, xOffset, yOffset);
+    GameOutputSound(soundBuffer, gameState->ToneHz);
+    GameRender(screenBuffer, gameState->XOffset, gameState->YOffset);
 }

@@ -5,6 +5,16 @@
 // ----------------------------------------------------------------------------
 //      PRE-PROCESSOR UTILITY
 // ----------------------------------------------------------------------------
+#if DEBUG
+#define Assert(Expression) if(!(Expression)) { *(int *) 0 = 0; }
+#else
+#define Assert(Expression)
+#endif
+
+#define Kilobytes(Value) ((Value) * 1024LL)
+#define Megabytes(Value) (Kilobytes(Value)*1024LL)
+#define Gigabytes(Value) (Megabytes(Value)*1024LL)
+
 #define ArrayCount(array) (sizeof(array) / sizeof((array)[0]))
 
 // ----------------------------------------------------------------------------
@@ -67,13 +77,43 @@ struct game_controller_input
 
 struct game_input
 {
+    
     game_controller_input Controllers[4];
 };
+
+struct game_memory
+{
+    bool32 IsInitialized;
+    
+    int64  PermanentStorageSize;
+    void*  PermanentStorage;     // required to be cleared to zero at startup (win32's VirtualAlloc does this by default)
+    
+    int64 TransientStorageSize;
+    void* TransientStorage;
+};
+
+struct game_state
+{
+    int32 ToneHz;
+    int32 XOffset;
+    int32 YOffset;    
+};
+
     
 // ----------------------------------------------------------------------------
 //      Services that the platform layer provides to the game
 // ----------------------------------------------------------------------------
+#if INTERNAL
+struct debug_read_file_result
+{
+    uint32 ContentSize;
+    void  *Contents;    
+};
+internal debug_read_file_result DEBUGPlatformReadEntireFile(char *fileName);
+internal void                   DEBUGPlatformFreeFileMemory(void *memory);
 
+internal bool32 DEBUGPlatformWriteEntireFile(char * fileName, uint32 memorySize, void *memory);
+#endif
 
 
 // ----------------------------------------------------------------------------
@@ -84,7 +124,8 @@ internal void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int y
 internal void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz);
 
 // requires four items: timing, input, render buffer, sound buffer
-internal void GameUpdateAndRender(game_input *input,
+internal void GameUpdateAndRender(game_memory *memory,
+                                  game_input *input,
                                   game_offscreen_buffer *screenBuffer, 
                                   game_sound_output_buffer *soundBuffer);
 
