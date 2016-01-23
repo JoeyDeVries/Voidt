@@ -11,9 +11,9 @@ internal void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int y
         uint32 *Pixel = (uint32 *)row;
         for(int X = 0; X < screenBuffer->Width; ++X)
         {    
-            uint8 Blue  = X + xOffset; // B
-            uint8 Green = Y + yOffset; // G
-            uint8 Red   = X + yOffset + xOffset;           // R
+            uint8 Blue  = (uint8)(X + xOffset);           // B
+            uint8 Green = (uint8)(Y + yOffset);           // G
+            uint8 Red   = (uint8)(X + yOffset + xOffset); // R
                         
             *Pixel++ = (Red << 16) | (Green << 8) | Blue;
         }
@@ -26,14 +26,14 @@ internal void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int y
 internal void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz)
 {
     local_persist real64 tSine;
-    int16 toneVolume = 3000;
+    uint16 toneVolume = 3000;
     // int16 toneHz = 256;
-    int16 wavePeriod = soundBuffer->SamplesPerSecond / toneHz;
+    uint16 wavePeriod = (uint16)(soundBuffer->SamplesPerSecond / toneHz);
     
     int16 *sampleOut = soundBuffer->Samples;
     for(int sampleIndex = 0; sampleIndex < soundBuffer->SampleCount; ++sampleIndex)
     {
-        real32 sineValue = sinf(tSine);
+        real32 sineValue = sinf((real32)tSine);
         int16 sampleValue = (int16)(sineValue * toneVolume);
         *sampleOut++ = sampleValue;
         *sampleOut++ = sampleValue;
@@ -70,7 +70,7 @@ internal void GameUpdateAndRender(game_memory *memory,
     {
         // analog movement tuning
         gameState->ToneHz = 412 + (int)(240.0f * input0->EndY);
-        gameState->XOffset += (int)4.0f * input0->EndX;
+        gameState->XOffset += (int)(4.0f * input0->EndX);
     }
     else
     {

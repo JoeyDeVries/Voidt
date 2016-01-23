@@ -10,8 +10,8 @@ struct win32_offscreen_buffer
 {
     BITMAPINFO  Info;
     void       *Memory;
-    uint16      Width;
-    uint16      Height;
+    int32      Width;
+    int32      Height;
     uint32      Pitch;
     uint8       BytesPerPixel;
     uint8       Padding[3]; // for 32 byte alignment
@@ -20,8 +20,8 @@ struct win32_offscreen_buffer
 // represents the window dimension return value(s)
 struct win32_window_dimension
 {
-    uint16 Width;
-    uint16 Height;
+    int32 Width;
+    int32 Height;
 };
 
 // direct sound audio buffer data
