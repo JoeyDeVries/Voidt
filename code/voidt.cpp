@@ -47,9 +47,10 @@ internal void GameUpdateAndRender(game_memory *memory,
                                   game_offscreen_buffer *screenBuffer, 
                                   game_sound_output_buffer *soundBuffer)
 {
-    game_state *gameState = (game_state*)memory->PermanentStorage;
+    // Assert((&input->Controllers[0].Back - &input->Controllers[0].Buttons[0]) == ArrayCount(input->Controllers[0].Buttons) - 1); // check if button array matches union struct members
     Assert(sizeof(game_state) <= memory->PermanentStorageSize); 
     
+    game_state *gameState = (game_state*)memory->PermanentStorage;    
     if(!memory->IsInitialized)
     {        
         char *fileName = __FILE__;
@@ -65,21 +66,32 @@ internal void GameUpdateAndRender(game_memory *memory,
     }
     
     
-    game_controller_input *input0 = &input->Controllers[0];
-    if(input0->IsAnalog)
+    for(int controllerIndex = 0; controllerIndex < ArrayCount(input->Controllers); ++controllerIndex)
     {
-        // analog movement tuning
-        gameState->ToneHz = 412 + (int)(240.0f * input0->EndY);
-        gameState->XOffset += (int)(4.0f * input0->EndX);
-    }
-    else
-    {
-        // digital movement tuning
-    }
-    
-    if(input0->Down.EndedDown)
-    {
-        gameState->YOffset += 1;
+        game_controller_input *controller = GetController(input, controllerIndex);
+        if(controller->IsAnalog)
+        {
+            // analog movement tuning
+            gameState->ToneHz = 412 + (int)(240.0f * controller->StickAverageY);
+            gameState->XOffset += (int)(4.0f * controller->StickAverageX);
+        }
+        else
+        {
+            // digital movement tuning
+            if(controller->MoveLeft.EndedDown)
+            {
+                gameState->XOffset -= 1;
+            }
+            if(controller->MoveRight.EndedDown)
+            {
+                gameState->XOffset += 1;
+            }
+        }
+        
+        if(controller->ActionDown.EndedDown)
+        {
+            gameState->YOffset += 1;
+        }
     }
     
     GameOutputSound(soundBuffer, gameState->ToneHz);
