@@ -478,6 +478,23 @@ internal void Win32ProcessPendingMessages(game_controller_input *keyboardControl
     }
 }
 
+
+inline LARGE_INTEGER Win32GetWallClock()
+{
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+    return counter;
+}
+
+inline real32 Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end)
+{
+    real32 result  = ((real32)end.QuadPart - start.QuadPart) / (real32)GlobalPerfCountFrequency.QuadPart;    
+    return result;
+}
+                                   
+                    
+                    
+
 int CALLBACK WinMain(
 	HINSTANCE instance,
 	HINSTANCE prevInstance,
@@ -496,11 +513,20 @@ int CALLBACK WinMain(
 	WindowClass.hInstance = instance;
 	WindowClass.lpszClassName = "JoeyWindowClass";
 		
-	LARGE_INTEGER perfCountFrequency;
-    QueryPerformanceFrequency(&perfCountFrequency);
+	// LARGE_INTEGER perfCountFrequency;
+    QueryPerformanceFrequency(&GlobalPerfCountFrequency);
+    // sets the scheduler granularity to 1ms so that our
+    // sleep() is more accurate
+    UINT desiredSchedulerMS = 1;
+    timeBeginPeriod(desiredSchedulerMS);
+       
     
-    uint64 lastCycleCount = __rdtsc();    
-        
+    // TODO(Joey): How do we reliably query this on windows?
+    int monitorRefreshHz = 60;
+    int gameUpdateHz = monitorRefreshHz / 2;
+    real32 targetSecondsPerFrame = 1.0f / (real32)gameUpdateHz;
+    
+    
 	if(RegisterClass(&WindowClass))
 	{
 		HWND Window = CreateWindowEx(
@@ -563,8 +589,9 @@ int CALLBACK WinMain(
                 
                 GlobalRunning = true;
                 
-                LARGE_INTEGER lastCounter;
-                QueryPerformanceCounter(&lastCounter);
+                LARGE_INTEGER lastCounter = Win32GetWallClock();
+                
+                uint64 lastCycleCount = __rdtsc();                       
                 while(GlobalRunning)
                 {                                                        
                     game_controller_input *oldKeyboardController = GetController(oldInput, 0);
@@ -695,33 +722,53 @@ int CALLBACK WinMain(
                                     
                                     
                                     
-                                    
-                    win32_window_dimension Dimension = Win32GetWindowDimension(Window);                
-                    Win32DisplayBufferInWindow(DeviceContext, &GlobalBackBuffer, Dimension.Width, Dimension.Height);           
+                                                       
 
                     
-                    uint64 endCycleCount = __rdtsc();
+                    // timing                   
+                    real32 workSecondsElapsed = Win32GetSecondsElapsed(lastCounter, Win32GetWallClock());
+                    // - time synchronization                                      
+                    real32 secondsElapsedForFrame = workSecondsElapsed;
+                    if(secondsElapsedForFrame < targetSecondsPerFrame)
+                    {
+                        DWORD sleepMS = (DWORD)(1000.0f * (targetSecondsPerFrame - secondsElapsedForFrame));
+                        if(sleepMS > 0)                                
+                            Sleep(sleepMS);
+                        while(secondsElapsedForFrame < targetSecondsPerFrame)
+                        {                 
+                            secondsElapsedForFrame = Win32GetSecondsElapsed(lastCounter, Win32GetWallClock());
+                        }
+                    }
+                    else
+                    {   // Missed frame rate! 
+                        // TODO(Joey): diagnostics - log this!                        
+                    }
+                 
+                    // display frame to monitor (w/ blit)
+                    win32_window_dimension Dimension = Win32GetWindowDimension(Window);                
+                    Win32DisplayBufferInWindow(DeviceContext, &GlobalBackBuffer, Dimension.Width, Dimension.Height);           
                     
-                    LARGE_INTEGER endCounter;
-                    QueryPerformanceCounter(&endCounter);
-                    
-                    // display values
-                    uint64 cyclesElapsed  = endCycleCount - lastCycleCount;
-                    uint64 counterElapsed = endCounter.QuadPart - lastCounter.QuadPart;
-                    real32 msPerFrame    = ((1000.0f * (real32)counterElapsed) / (real32)perfCountFrequency.QuadPart);
-                    real32 fps           = (real32)perfCountFrequency.QuadPart / (real32)counterElapsed;
-                    real32 mcpf          = (real32)(cyclesElapsed / (1000.0f * 1000.0f)); // mega-cycles per frame
-                    
-                    // char charBuffer[256];
-                    // sprintf(charBuffer, "%.02fms/f / %.02ff/s  -  %.02fmc/f\n", msPerFrame, fps, mcpf); 
-                    // OutputDebugStringA(charBuffer);
-                    
-                    lastCounter = endCounter;
-                    lastCycleCount = endCycleCount;
-                    
+                  
+                    // swap input
                     game_input *temp = newInput;
                     newInput = oldInput;
                     oldInput = temp;
+                    
+                    // get timer stats at end of frame
+                    LARGE_INTEGER endCounter = Win32GetWallClock();
+                    real32 msPerFrame        = 1000.0f * Win32GetSecondsElapsed(lastCounter, endCounter);
+                    lastCounter = endCounter;                                        
+                    // - cycles
+                    uint64 endCycleCount = __rdtsc();
+                    uint64 cyclesElapsed  = endCycleCount - lastCycleCount;
+                    lastCycleCount = endCycleCount;                    
+                    // - print debug timing info
+                    real32 fps           = (real32)GlobalPerfCountFrequency.QuadPart / (real32)endCounter.QuadPart;
+                    real32 mcpf          = (real32)(cyclesElapsed / (1000.0f * 1000.0f)); // mega-cycles per frame                    
+                    char charBuffer[256];
+                    _snprintf_s(charBuffer, sizeof(charBuffer), "%.02fms/f / %.02ff/s  -  %.02fmc/f\n", msPerFrame, fps, mcpf); 
+                    OutputDebugStringA(charBuffer);
+  
                 }
             }
             else

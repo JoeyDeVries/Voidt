@@ -40,7 +40,7 @@ internal void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz)
         
         tSine += 2.0f * Pi32 * 1.0f / wavePeriod;
     }        
-}
+} 
 
 internal void GameUpdateAndRender(game_memory *memory,
                                   game_input *input,

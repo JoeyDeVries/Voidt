@@ -41,6 +41,7 @@ struct win32_sound_output
 global_variable bool GlobalRunning;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
+global_variable LARGE_INTEGER GlobalPerfCountFrequency;
 
 
 // ----------------------------------------------------------------------------
