@@ -488,7 +488,7 @@ inline LARGE_INTEGER Win32GetWallClock()
 
 inline real32 Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end)
 {
-    real32 result  = ((real32)end.QuadPart - start.QuadPart) / (real32)GlobalPerfCountFrequency.QuadPart;    
+    real32 result  = (real32)(end.QuadPart - start.QuadPart) / (real32)GlobalPerfCountFrequency.QuadPart;
     return result;
 }
                                    
@@ -559,7 +559,7 @@ int CALLBACK WinMain(
             soundOutput.runningSampleIndex  = 0;
             soundOutput.bytesPerSample      = sizeof(int16) * 2;
             soundOutput.secondaryBufferSize = soundOutput.samplesPerSecond * soundOutput.bytesPerSample;
-            soundOutput.latencySampleCount  = soundOutput.samplesPerSecond / 15;
+            soundOutput.latencySampleCount  = 3 * (soundOutput.samplesPerSecond / gameUpdateHz);
 
             Win32InitDSound(Window, soundOutput.samplesPerSecond, soundOutput.secondaryBufferSize); 
             Win32ClearBuffer(&soundOutput);
@@ -586,9 +586,11 @@ int CALLBACK WinMain(
                 game_input *newInput = &input[0];
                 game_input *oldInput = &input[1];
                 
+                DWORD lastPlayCursor = 0;
+                bool32 soundIsValid = false;
                 
-                GlobalRunning = true;
                 
+                GlobalRunning = true;                
                 LARGE_INTEGER lastCounter = Win32GetWallClock();
                 
                 uint64 lastCycleCount = __rdtsc();                       
@@ -675,14 +677,13 @@ int CALLBACK WinMain(
                     DWORD byteToLock = 0;
                     DWORD targetCursor = 0;
                     DWORD bytesToWrite = 0;
-                    DWORD playCursor = 0;
-                    DWORD writeCursor = 0;
-                    bool32 soundIsValid = false;
-                    if(SUCCEEDED(GlobalSecondaryBuffer->GetCurrentPosition(&playCursor, &writeCursor)))
+                    if(soundIsValid)
                     {
+                        // byte to lock is from where we start writing to the sound buffer
+                        // bytesToWrite is how many bytes we'll write
                         byteToLock = (soundOutput.runningSampleIndex * soundOutput.bytesPerSample) % soundOutput.secondaryBufferSize;
                         
-                        targetCursor = (playCursor + soundOutput.latencySampleCount * soundOutput.bytesPerSample) % soundOutput.secondaryBufferSize;
+                        targetCursor = (lastPlayCursor + soundOutput.latencySampleCount * soundOutput.bytesPerSample) % soundOutput.secondaryBufferSize;
                         if(byteToLock > targetCursor)
                         {
                             bytesToWrite = (soundOutput.secondaryBufferSize - byteToLock); // from byteToLock to end
@@ -692,7 +693,6 @@ int CALLBACK WinMain(
                         {
                             bytesToWrite = targetCursor - byteToLock;
                         }
-                        soundIsValid = true;
                     }
                               
                     game_sound_output_buffer soundBuffer = {};
@@ -726,7 +726,8 @@ int CALLBACK WinMain(
 
                     
                     // timing                   
-                    real32 workSecondsElapsed = Win32GetSecondsElapsed(lastCounter, Win32GetWallClock());
+                    LARGE_INTEGER workCounter = Win32GetWallClock();
+                    real32 workSecondsElapsed = Win32GetSecondsElapsed(lastCounter, workCounter);
                     // - time synchronization                                      
                     real32 secondsElapsedForFrame = workSecondsElapsed;
                     if(secondsElapsedForFrame < targetSecondsPerFrame)
@@ -743,26 +744,42 @@ int CALLBACK WinMain(
                     {   // Missed frame rate! 
                         // TODO(Joey): diagnostics - log this!                        
                     }
+                    // get timer stats at end of frame
+                    LARGE_INTEGER endCounter = Win32GetWallClock();
+                    real32 msPerFrame        = 1000.0f * Win32GetSecondsElapsed(lastCounter, endCounter);
+                    lastCounter = endCounter;                                      
                  
                     // display frame to monitor (w/ blit)
                     win32_window_dimension Dimension = Win32GetWindowDimension(Window);                
                     Win32DisplayBufferInWindow(DeviceContext, &GlobalBackBuffer, Dimension.Width, Dimension.Height);           
-                    
+                  
+                    // audio - get most recent cursor positions (after time sync/block)
+                    DWORD playCursor;
+                    DWORD writeCursor;
+                    if(GlobalSecondaryBuffer->GetCurrentPosition(&playCursor, &writeCursor) == DS_OK)
+                    {
+                        lastPlayCursor = playCursor;
+                        if(!soundIsValid)
+                        {
+                            soundOutput.runningSampleIndex = writeCursor;
+                            soundIsValid = true;
+                        }
+                    }
+                    else
+                    {
+                        soundIsValid = false;
+                    }
+                  
                   
                     // swap input
                     game_input *temp = newInput;
                     newInput = oldInput;
-                    oldInput = temp;
-                    
-                    // get timer stats at end of frame
-                    LARGE_INTEGER endCounter = Win32GetWallClock();
-                    real32 msPerFrame        = 1000.0f * Win32GetSecondsElapsed(lastCounter, endCounter);
-                    lastCounter = endCounter;                                        
-                    // - cycles
+                    oldInput = temp;                                      
+                    // timer - cycles
                     uint64 endCycleCount = __rdtsc();
                     uint64 cyclesElapsed  = endCycleCount - lastCycleCount;
                     lastCycleCount = endCycleCount;                    
-                    // - print debug timing info
+                    // timer - print debug timing info
                     real32 fps           = (real32)GlobalPerfCountFrequency.QuadPart / (real32)endCounter.QuadPart;
                     real32 mcpf          = (real32)(cyclesElapsed / (1000.0f * 1000.0f)); // mega-cycles per frame                    
                     char charBuffer[256];
