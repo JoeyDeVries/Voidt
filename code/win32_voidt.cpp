@@ -560,6 +560,7 @@ int CALLBACK WinMain(
             soundOutput.bytesPerSample      = sizeof(int16) * 2;
             soundOutput.secondaryBufferSize = soundOutput.samplesPerSecond * soundOutput.bytesPerSample;
             soundOutput.latencySampleCount  = 3 * (soundOutput.samplesPerSecond / gameUpdateHz);
+            soundOutput.SafetyBytes         = (soundOutput.samplesPerSecond * soundOutput.bytesPerSample / gameUpdateHz) / 2; 
 
             Win32InitDSound(Window, soundOutput.samplesPerSecond, soundOutput.secondaryBufferSize); 
             Win32ClearBuffer(&soundOutput);
@@ -586,8 +587,9 @@ int CALLBACK WinMain(
                 game_input *newInput = &input[0];
                 game_input *oldInput = &input[1];
                 
-                DWORD lastPlayCursor = 0;
                 bool32 soundIsValid = false;
+                DWORD audioLatencyBytes = 0;
+                real32 audioLatencySeconds = 0.0f;
                 
                 
                 GlobalRunning = true;                
@@ -595,7 +597,10 @@ int CALLBACK WinMain(
                 
                 uint64 lastCycleCount = __rdtsc();                       
                 while(GlobalRunning)
-                {                                                        
+                {              
+                    //////////////////////////////////////////////////////////
+                    //       INPUT
+                    //////////////////////////////////////////////////////////                
                     game_controller_input *oldKeyboardController = GetController(oldInput, 0);
                     game_controller_input *newKeyboardController = GetController(newInput, 0);
                     *newKeyboardController = {};
@@ -672,60 +677,105 @@ int CALLBACK WinMain(
                         }
                     }
 
-                    // render
-                    // RenderWeirdGradiant(&GlobalBackBuffer, XOffset++, YOffset);         
-                    DWORD byteToLock = 0;
-                    DWORD targetCursor = 0;
-                    DWORD bytesToWrite = 0;
-                    if(soundIsValid)
-                    {
-                        // byte to lock is from where we start writing to the sound buffer
-                        // bytesToWrite is how many bytes we'll write
-                        byteToLock = (soundOutput.runningSampleIndex * soundOutput.bytesPerSample) % soundOutput.secondaryBufferSize;
-                        
-                        targetCursor = (lastPlayCursor + soundOutput.latencySampleCount * soundOutput.bytesPerSample) % soundOutput.secondaryBufferSize;
-                        if(byteToLock > targetCursor)
-                        {
-                            bytesToWrite = (soundOutput.secondaryBufferSize - byteToLock); // from byteToLock to end
-                            bytesToWrite += targetCursor;                                    // from 0 to position at PlayCursor
-                        }
-                        else
-                        {
-                            bytesToWrite = targetCursor - byteToLock;
-                        }
-                    }
+                                      
                               
-                    game_sound_output_buffer soundBuffer = {};
-                    soundBuffer.SamplesPerSecond = soundOutput.samplesPerSecond;
-                    soundBuffer.SampleCount = bytesToWrite / soundOutput.bytesPerSample;
-                    soundBuffer.Samples = samples;
+                
                     
-                    
+                    //////////////////////////////////////////////////////////
+                    //       UPDATE & RENDER 
+                    //////////////////////////////////////////////////////////    
                     game_offscreen_buffer buffer = {};
                     buffer.Memory = GlobalBackBuffer.Memory;
                     buffer.Width  = (uint16)GlobalBackBuffer.Width;
                     buffer.Height = (uint16)GlobalBackBuffer.Height;
                     buffer.Pitch  = GlobalBackBuffer.Pitch;
                     
-                    GameUpdateAndRender(&gameMemory, newInput, &buffer, &soundBuffer);
-                                    
-                    // audio
-                    if(soundIsValid)
-                    {                   
-                        Win32FillSoundBuffer(&soundOutput, byteToLock, bytesToWrite, &soundBuffer);
+                    GameUpdateAndRender(&gameMemory, newInput, &buffer);
+                    
+                    
+                    //////////////////////////////////////////////////////////
+                    //       AUDIO 
+                    //////////////////////////////////////////////////////////                                  
+                    DWORD playCursor;
+                    DWORD writeCursor; // safest distance from playCursor to write to
+                    if(GlobalSecondaryBuffer->GetCurrentPosition(&playCursor, &writeCursor) == DS_OK)
+                    {
+                         /* NOTE(Joey:)
+                    
+                           This a nice comment syntax for large explenation of more
+                           complicated logic. Start with a note and denote a three 
+                           space left padding.
+                       
+                           This should eventually be a comment describing the logic
+                           of the audio synchronization system.
+                    
+                        */
+                        if(!soundIsValid)
+                        {
+                            soundOutput.runningSampleIndex = writeCursor;
+                            soundIsValid = true;
+                        }                                                
+                        
+                        DWORD byteToLock = (soundOutput.runningSampleIndex * soundOutput.bytesPerSample) % soundOutput.secondaryBufferSize;
+                        
+                        DWORD expectedSoundBytesPerFrame = (soundOutput.samplesPerSecond * soundOutput.bytesPerSample) / gameUpdateHz;
+                        DWORD expectedFrameBoundaryByte = playCursor + expectedSoundBytesPerFrame;
+                        
+                        DWORD safeWriteCursor = writeCursor;
+                        if(safeWriteCursor < playCursor)
+                            safeWriteCursor += soundOutput.secondaryBufferSize;
+                        Assert(safeWriteCursor >= playCursor);
+                        safeWriteCursor += soundOutput.SafetyBytes;
+                        
+                        bool32 audioCardIsLowLatency = safeWriteCursor < expectedFrameBoundaryByte;
+
+                        DWORD targetCursor = 0;       
+                        if(audioCardIsLowLatency)
+                            targetCursor = expectedFrameBoundaryByte + expectedSoundBytesPerFrame;
+                        else
+                            targetCursor = writeCursor + expectedSoundBytesPerFrame + soundOutput.SafetyBytes;
+                        targetCursor = targetCursor % soundOutput.secondaryBufferSize;
+                        
+                        DWORD bytesToWrite = 0;
+                        if(byteToLock > targetCursor)
+                        {
+                            bytesToWrite = (soundOutput.secondaryBufferSize - byteToLock); // from byteToLock to end
+                            bytesToWrite += targetCursor;                                  // from 0 to position at PlayCursor
+                        }
+                        else
+                        {
+                            bytesToWrite = targetCursor - byteToLock;
+                        }
+                        
+                        // let game write to audio buffer
+                        game_sound_output_buffer soundBuffer = {};
+                        soundBuffer.SamplesPerSecond = soundOutput.samplesPerSecond;
+                        soundBuffer.SampleCount = bytesToWrite / soundOutput.bytesPerSample;
+                        soundBuffer.Samples = samples;
+                        GameGetSoundSamples(&gameMemory, &soundBuffer);
+                        
+                        
+                        // sync sound buffer with audio hardware                        
+                        // DWORD unwrappedWriteCursor = writeCursor;
+                        // if(unwrappedWriteCursor < playCursor) // write cursor circled atound ringbuffer while playCursor yet hasn'table
+                            // unwrappedWriteCursor += soundOutput.secondaryBufferSize;
+                        // audioLatencyBytes = unwrappedWriteCursor - playCursor;
+                        // audioLatencySeconds = (((real32)audioLatencyBytes / (real32)soundOutput.bytesPerSample) / (real32)soundOutput.samplesPerSecond);
+                                        
+                        Win32FillSoundBuffer(&soundOutput, byteToLock, bytesToWrite, &soundBuffer);                        
                     }
                     else
                     {
-                        // NOTE(JOEY): diagnostics
-                    }          
-                                    
-                                    
+                        soundIsValid = false;
+                    }
                                     
                                     
                                                        
 
                     
-                    // timing                   
+                    //////////////////////////////////////////////////////////
+                    //       TIMING 
+                    //////////////////////////////////////////////////////////                  
                     LARGE_INTEGER workCounter = Win32GetWallClock();
                     real32 workSecondsElapsed = Win32GetSecondsElapsed(lastCounter, workCounter);
                     // - time synchronization                                      
@@ -752,23 +802,7 @@ int CALLBACK WinMain(
                     // display frame to monitor (w/ blit)
                     win32_window_dimension Dimension = Win32GetWindowDimension(Window);                
                     Win32DisplayBufferInWindow(DeviceContext, &GlobalBackBuffer, Dimension.Width, Dimension.Height);           
-                  
-                    // audio - get most recent cursor positions (after time sync/block)
-                    DWORD playCursor;
-                    DWORD writeCursor;
-                    if(GlobalSecondaryBuffer->GetCurrentPosition(&playCursor, &writeCursor) == DS_OK)
-                    {
-                        lastPlayCursor = playCursor;
-                        if(!soundIsValid)
-                        {
-                            soundOutput.runningSampleIndex = writeCursor;
-                            soundIsValid = true;
-                        }
-                    }
-                    else
-                    {
-                        soundIsValid = false;
-                    }
+
                   
                   
                     // swap input

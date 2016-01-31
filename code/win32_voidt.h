@@ -30,8 +30,9 @@ struct win32_sound_output
     uint32 runningSampleIndex;
     int    samplesPerSecond;     
     int    bytesPerSample;    
-    int    secondaryBufferSize;    
+    DWORD  secondaryBufferSize;    
     int    latencySampleCount; // how many samples ahead of the play cursor we'd like to be
+    DWORD  SafetyBytes;
 };
 
 

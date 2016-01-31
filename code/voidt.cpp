@@ -44,8 +44,7 @@ internal void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz)
 
 internal void GameUpdateAndRender(game_memory *memory,
                                   game_input *input,
-                                  game_offscreen_buffer *screenBuffer, 
-                                  game_sound_output_buffer *soundBuffer)
+                                  game_offscreen_buffer *screenBuffer)
 {
     // Assert((&input->Controllers[0].Back - &input->Controllers[0].Buttons[0]) == ArrayCount(input->Controllers[0].Buttons) - 1); // check if button array matches union struct members
     Assert(sizeof(game_state) <= memory->PermanentStorageSize); 
@@ -62,7 +61,7 @@ internal void GameUpdateAndRender(game_memory *memory,
             DEBUGPlatformFreeFileMemory(file.Contents);
         }
         
-        gameState->ToneHz = 256;
+        gameState->ToneHz = 412;
     }
     
     
@@ -94,6 +93,12 @@ internal void GameUpdateAndRender(game_memory *memory,
         }
     }
     
-    GameOutputSound(soundBuffer, gameState->ToneHz);
+  
     GameRender(screenBuffer, gameState->XOffset, gameState->YOffset);
+}
+
+internal void GameGetSoundSamples(game_memory *memory, game_sound_output_buffer *soundBuffer)
+{
+    game_state *gameState = (game_state*)memory->PermanentStorage;      
+    GameOutputSound(soundBuffer, gameState->ToneHz);
 }

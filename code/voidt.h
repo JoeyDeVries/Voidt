@@ -131,8 +131,9 @@ internal void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz)
 // requires four items: timing, input, render buffer, sound buffer
 internal void GameUpdateAndRender(game_memory *memory,
                                   game_input *input,
-                                  game_offscreen_buffer *screenBuffer, 
-                                  game_sound_output_buffer *soundBuffer);
+                                  game_offscreen_buffer *screenBuffer);
+                                  
+internal void GameGetSoundSamples(game_memory *memory, game_sound_output_buffer *soundBuffer);
 
 
 #endif
