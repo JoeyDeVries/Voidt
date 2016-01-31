@@ -594,6 +594,7 @@ int CALLBACK WinMain(
                 
                 GlobalRunning = true;                
                 LARGE_INTEGER lastCounter = Win32GetWallClock();
+                LARGE_INTEGER flipWallClock = Win32GetWallClock();
                 
                 uint64 lastCycleCount = __rdtsc();                       
                 while(GlobalRunning)
@@ -692,10 +693,14 @@ int CALLBACK WinMain(
                     
                     GameUpdateAndRender(&gameMemory, newInput, &buffer);
                     
+                   
                     
                     //////////////////////////////////////////////////////////
                     //       AUDIO 
-                    //////////////////////////////////////////////////////////                                  
+                    //////////////////////////////////////////////////////////              
+                    LARGE_INTEGER audioWallClock = Win32GetWallClock();
+                    real32 fromBeginToAudioSrconds = Win32GetSecondsElapsed(flipWallClock, audioWallClock);
+                    
                     DWORD playCursor;
                     DWORD writeCursor; // safest distance from playCursor to write to
                     if(GlobalSecondaryBuffer->GetCurrentPosition(&playCursor, &writeCursor) == DS_OK)
@@ -719,7 +724,11 @@ int CALLBACK WinMain(
                         DWORD byteToLock = (soundOutput.runningSampleIndex * soundOutput.bytesPerSample) % soundOutput.secondaryBufferSize;
                         
                         DWORD expectedSoundBytesPerFrame = (soundOutput.samplesPerSecond * soundOutput.bytesPerSample) / gameUpdateHz;
+
+                        real32 secondsLeftUntilFlip = targetSecondsPerFrame - fromBeginToAudioSrconds;
+                        DWORD expectedBytesUntilFlip = (DWORD)((secondsLeftUntilFlip / targetSecondsPerFrame) * (real32)expectedSoundBytesPerFrame);                        
                         DWORD expectedFrameBoundaryByte = playCursor + expectedSoundBytesPerFrame;
+
                         
                         DWORD safeWriteCursor = writeCursor;
                         if(safeWriteCursor < playCursor)
