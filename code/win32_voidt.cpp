@@ -1,25 +1,4 @@
-#include <stdint.h> // defines precise compiler-independent sizes of primitive types
-#include <math.h>
 
-#define internal        static
-#define local_persist   static
-#define global_variable static
-
-#define Pi32 3.141592665359f
-
-typedef int8_t  int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-typedef int32   bool32;
-
-typedef uint8_t  uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-
-typedef float  real32;
-typedef double real64;
 
 // NOTE(Joey): utilize a unity build approach 
 // (I personally dislike the approach and support a more modular
@@ -30,7 +9,7 @@ typedef double real64;
 //  probably faster in the end, while keeping the code modular)
 //  - I still take the approach seeing as it is an interesting
 //    educational oppertunity regarding build/compiler configs.
-#include "voidt.cpp"
+#include "voidt.h"
 
 #include <windows.h>
 #include <xinput.h> // xbox 360 controller
@@ -47,7 +26,16 @@ inline uint32 SafeTruncateUInt64(uint64 value)
     return result;
 }
 
-internal debug_read_file_result DEBUGPlatformReadEntireFile(char *fileName)
+DEBUG_PLATFORM_FREE_FILE_MEMORY(DEBUGPlatformFreeFileMemory)
+{
+    if(memory)
+    {
+        VirtualFree(memory, 0, MEM_RELEASE);
+        memory = 0;
+    }
+}
+
+DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
 {
     debug_read_file_result result = {};
     
@@ -79,16 +67,7 @@ internal debug_read_file_result DEBUGPlatformReadEntireFile(char *fileName)
     return result;
 }
 
-internal void DEBUGPlatformFreeFileMemory(void *memory)
-{
-    if(memory)
-    {
-        VirtualFree(memory, 0, MEM_RELEASE);
-        memory = 0;
-    }
-}
-
-internal bool32 DEBUGPlatformWriteEntireFile(char * fileName, uint32 memorySize, void *memory)
+DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
 {
     bool32 result = false;
     
@@ -108,6 +87,59 @@ internal bool32 DEBUGPlatformWriteEntireFile(char * fileName, uint32 memorySize,
         CloseHandle(fileHandle);
     }
     return result;
+}
+
+inline FILETIME Win32GetLastWriteTime(char *fileName)
+{
+    FILETIME lastWriteTime = {};
+    
+    WIN32_FIND_DATA findData;
+    HANDLE findHandle = FindFirstFile(fileName, &findData);
+    if(findHandle != INVALID_HANDLE_VALUE)
+    {
+        lastWriteTime = findData.ftLastWriteTime;
+        FindClose(findHandle);
+    }
+    return lastWriteTime;
+}
+
+internal win32_game_code Win32LoadGameCode(char *sourceDLLName, char *tempDLLName)
+{
+    win32_game_code result = {};
+    
+    result.DLLLastWriteTime = Win32GetLastWriteTime(sourceDLLName);
+      
+    CopyFile(sourceDLLName, tempDLLName, FALSE);
+    result.GameCodeDLL = LoadLibraryA(tempDLLName);
+    if(result.GameCodeDLL)
+    {
+        result.UpdateAndRender = (game_update_and_render*)GetProcAddress(result.GameCodeDLL, "GameUpdateAndRender");
+        result.GetSoundSamples = (game_get_sound_samples*)GetProcAddress(result.GameCodeDLL, "GameGetSoundSamples");
+        
+        result.IsValid = result.UpdateAndRender && result.GetSoundSamples;
+    }
+    
+    if(!result.IsValid)
+    {
+        result.UpdateAndRender = GameUpdateAndRenderStub;
+        result.GetSoundSamples = GameGetSoundSamplesStub;    
+    }
+    
+    return result;
+}
+
+internal void Win32UnloadGameCode(win32_game_code *gameCode)
+{
+    if(gameCode->GameCodeDLL)        
+    {
+        FreeLibrary(gameCode->GameCodeDLL);
+        gameCode->GameCodeDLL = 0;
+    }
+    
+
+    gameCode->IsValid = false;
+    gameCode->UpdateAndRender = GameUpdateAndRenderStub;
+    gameCode->GetSoundSamples = GameGetSoundSamplesStub;
 }
 
 // tries to find XInput function definition from DLL if present
@@ -493,6 +525,18 @@ inline real32 Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end)
 }
                                    
                     
+internal void CatStrings(size_t sourceACount, char *sourceA, size_t sourceBCount, char *sourceB, size_t destCount, char *dest)
+{
+    for(int i = 0; i < sourceACount; ++i)
+    {
+        *dest++ = *sourceA++;
+    }
+    for(int i = 0; i < sourceBCount; ++i)
+    {
+        *dest++ = *sourceB++;
+    }
+    *dest++ = 0;
+}    
                     
 
 int CALLBACK WinMain(
@@ -501,6 +545,24 @@ int CALLBACK WinMain(
 	LPSTR cmdLine,
 	int cmdShow)
 {
+    // get executable directory
+    char EXEFileName[MAX_PATH];
+    DWORD sizeOfFilename = GetModuleFileNameA(0, EXEFileName, sizeof(EXEFileName));
+    char *onePastLastSlash = EXEFileName;
+    for(char *scan = EXEFileName; *scan; ++scan)
+    {
+        if(*scan == '\\')
+            onePastLastSlash = scan + 1;
+    }
+    
+    char sourceGameCodeDLLFilename[] = "voidt.dll";
+    char sourceGameCodeDLLFullPath[MAX_PATH];
+    CatStrings(onePastLastSlash - EXEFileName, EXEFileName, sizeof(sourceGameCodeDLLFilename) - 1, sourceGameCodeDLLFilename, sizeof(sourceGameCodeDLLFullPath), sourceGameCodeDLLFullPath);
+    char tempGameCodeDLLFilename[] = "voidt_temp.dll";
+    char tempGameCodeDLLFullPath[MAX_PATH];
+    CatStrings(onePastLastSlash - EXEFileName, EXEFileName, sizeof(tempGameCodeDLLFilename) - 1, tempGameCodeDLLFilename, sizeof(tempGameCodeDLLFullPath), tempGameCodeDLLFullPath);
+    
+    
 	// MessageBox(0, "Sup G", "Joey", MB_OK | MB_ICONINFORMATION);	
     Win32LoadXInput();
     
@@ -578,7 +640,10 @@ int CALLBACK WinMain(
             gameMemory.TransientStorageSize = Gigabytes(1);
             uint64 totalSize                = gameMemory.PermanentStorageSize + gameMemory.TransientStorageSize;
             gameMemory.PermanentStorage     = VirtualAlloc(baseAddress, (size_t)totalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-            gameMemory.TransientStorage     = (uint8 *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
+            gameMemory.TransientStorage     = (uint8 *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;            
+            gameMemory.DEBUGPlatformFreeFileMemory  = DEBUGPlatformFreeFileMemory;
+            gameMemory.DEBUGPlatformReadEntireFile  = DEBUGPlatformReadEntireFile;
+            gameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
             
             if(samples && gameMemory.PermanentStorage && gameMemory.TransientStorage)
             {
@@ -596,9 +661,18 @@ int CALLBACK WinMain(
                 LARGE_INTEGER lastCounter = Win32GetWallClock();
                 LARGE_INTEGER flipWallClock = Win32GetWallClock();
                 
+                win32_game_code game = Win32LoadGameCode(sourceGameCodeDLLFullPath, tempGameCodeDLLFullPath);
+                
                 uint64 lastCycleCount = __rdtsc();                       
                 while(GlobalRunning)
                 {              
+                    FILETIME newDLLWriteTime = Win32GetLastWriteTime(sourceGameCodeDLLFullPath);
+                    if(CompareFileTime(&game.DLLLastWriteTime, &newDLLWriteTime) != 0)
+                    {
+                        Win32UnloadGameCode(&game);
+                        game = Win32LoadGameCode(sourceGameCodeDLLFullPath, tempGameCodeDLLFullPath);
+                    }
+            
                     //////////////////////////////////////////////////////////
                     //       INPUT
                     //////////////////////////////////////////////////////////                
@@ -691,7 +765,7 @@ int CALLBACK WinMain(
                     buffer.Height = (uint16)GlobalBackBuffer.Height;
                     buffer.Pitch  = GlobalBackBuffer.Pitch;
                     
-                    GameUpdateAndRender(&gameMemory, newInput, &buffer);
+                    game.UpdateAndRender(&gameMemory, newInput, &buffer);
                     
                    
                     
@@ -761,7 +835,7 @@ int CALLBACK WinMain(
                         soundBuffer.SamplesPerSecond = soundOutput.samplesPerSecond;
                         soundBuffer.SampleCount = bytesToWrite / soundOutput.bytesPerSample;
                         soundBuffer.Samples = samples;
-                        GameGetSoundSamples(&gameMemory, &soundBuffer);
+                        game.GetSoundSamples(&gameMemory, &soundBuffer);
                         
                         
                         // sync sound buffer with audio hardware                        
@@ -845,7 +919,7 @@ int CALLBACK WinMain(
 	{
 		OutputDebugStringA("RegisterClass FAILED\n");
 	}
-	
+
 
 	return (0);
 }

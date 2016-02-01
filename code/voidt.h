@@ -1,6 +1,29 @@
 #ifndef VOIDT_H
 #define VOIDT_H
 
+#include <stdint.h> // defines precise compiler-independent sizes of primitive types
+#include <math.h>
+
+#define internal        static
+#define local_persist   static
+#define global_variable static
+
+#define Pi32 3.141592665359f
+
+typedef int8_t  int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+typedef int32   bool32;
+
+typedef uint8_t  uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
+
+typedef float  real32;
+typedef double real64;
+
 
 // ----------------------------------------------------------------------------
 //      PRE-PROCESSOR UTILITY
@@ -86,23 +109,22 @@ inline game_controller_input* GetController(game_input *input, uint32 controller
     return result;
 }
 
-struct game_memory
-{
-    bool32 IsInitialized;
-    
-    int64  PermanentStorageSize;
-    void*  PermanentStorage;     // required to be cleared to zero at startup (win32's VirtualAlloc does this by default)
-    
-    int64 TransientStorageSize;
-    void* TransientStorage;
-};
 
 struct game_state
 {
     int32 ToneHz;
     int32 XOffset;
     int32 YOffset;    
+    real32 tSine;
 };
+
+// ----------------------------------------------------------------------------
+//      FUNCTION POINTER DEFINITIONS (LIBRARY HOOKS)
+// ----------------------------------------------------------------------------
+
+// global_variable x_input_get_state *XInputGetState_ = XInputGetStateStub;
+// #define XInputGetState XInputGetState_
+
 
     
 // ----------------------------------------------------------------------------
@@ -114,26 +136,65 @@ struct debug_read_file_result
     uint32 ContentSize;
     void  *Contents;    
 };
-internal debug_read_file_result DEBUGPlatformReadEntireFile(char *fileName);
-internal void                   DEBUGPlatformFreeFileMemory(void *memory);
 
-internal bool32 DEBUGPlatformWriteEntireFile(char * fileName, uint32 memorySize, void *memory);
+#define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(void *memory)
+typedef DEBUG_PLATFORM_FREE_FILE_MEMORY(debug_platform_free_file_memory);
+
+#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(char *fileName)
+typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
+
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char *fileName, uint32 memorySize, void *memory)
+typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
+
+
+// debug_read_file_result DEBUGPlatformReadEntireFile(char *fileName);
+// void                   DEBUGPlatformFreeFileMemory(void *memory);
+
+// bool32 DEBUGPlatformWriteEntireFile(char * fileName, uint32 memorySize, void *memory);
 #endif
+
+
+// needs defines from platform function hooks TODO(Joey): clean-up
+struct game_memory
+{
+    bool32 IsInitialized;
+    
+    int64  PermanentStorageSize;
+    void*  PermanentStorage;     // required to be cleared to zero at startup (win32's VirtualAlloc does this by default)
+    
+    int64 TransientStorageSize;
+    void* TransientStorage;
+    
+    debug_platform_free_file_memory  *DEBUGPlatformFreeFileMemory;
+    debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
+    debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
+};
+
 
 
 // ----------------------------------------------------------------------------
 //      Services that the game provides to the platform layer
 // ----------------------------------------------------------------------------
-internal void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int yOffset);
+void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int yOffset);
 
-internal void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz);
+void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz);
+
+
+#define GAME_UPDATE_AND_RENDER(name) void name(game_memory *memory, game_input *input, game_offscreen_buffer *screenBuffer)
+typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
+GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub) { }
+
+#define GAME_GET_SOUND_SAMPLES(name) void name(game_memory *memory, game_sound_output_buffer *soundBuffer)
+typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
+GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub) { }
+
 
 // requires four items: timing, input, render buffer, sound buffer
-internal void GameUpdateAndRender(game_memory *memory,
-                                  game_input *input,
-                                  game_offscreen_buffer *screenBuffer);
+// void GameUpdateAndRender(game_memory *memory,
+                                  // game_input *input,
+                                  // game_offscreen_buffer *screenBuffer);
                                   
-internal void GameGetSoundSamples(game_memory *memory, game_sound_output_buffer *soundBuffer);
+// void GameGetSoundSamples(game_memory *memory, game_sound_output_buffer *soundBuffer);
 
 
 #endif

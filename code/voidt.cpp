@@ -1,6 +1,6 @@
 #include "voidt.h"
 
-internal void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int yOffset)
+void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int yOffset)
 {
     // int XOffset = 0;
     // int YOffset = 0;
@@ -23,9 +23,8 @@ internal void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int y
 
 
 
-internal void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz)
+void GameOutputSound(game_sound_output_buffer *soundBuffer, game_state *gameState, int toneHz)
 {
-    local_persist real64 tSine;
     uint16 toneVolume = 3000;
     // int16 toneHz = 256;
     uint16 wavePeriod = (uint16)(soundBuffer->SamplesPerSecond / toneHz);
@@ -33,18 +32,16 @@ internal void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz)
     int16 *sampleOut = soundBuffer->Samples;
     for(int sampleIndex = 0; sampleIndex < soundBuffer->SampleCount; ++sampleIndex)
     {
-        real32 sineValue = sinf((real32)tSine);
+        real32 sineValue = sinf((real32)gameState->tSine);
         int16 sampleValue = (int16)(sineValue * toneVolume);
         *sampleOut++ = sampleValue;
         *sampleOut++ = sampleValue;
         
-        tSine += 2.0f * Pi32 * 1.0f / wavePeriod;
+        gameState->tSine += 2.0f * Pi32 * 1.0f / wavePeriod;
     }        
 } 
 
-internal void GameUpdateAndRender(game_memory *memory,
-                                  game_input *input,
-                                  game_offscreen_buffer *screenBuffer)
+extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     // Assert((&input->Controllers[0].Back - &input->Controllers[0].Buttons[0]) == ArrayCount(input->Controllers[0].Buttons) - 1); // check if button array matches union struct members
     Assert(sizeof(game_state) <= memory->PermanentStorageSize); 
@@ -53,15 +50,18 @@ internal void GameUpdateAndRender(game_memory *memory,
     if(!memory->IsInitialized)
     {        
         char *fileName = __FILE__;
-        debug_read_file_result file = DEBUGPlatformReadEntireFile(fileName);
+        debug_read_file_result file = memory->DEBUGPlatformReadEntireFile(fileName);
         
         if(file.Contents)
         {
-            DEBUGPlatformWriteEntireFile("W:/data/test.out", file.ContentSize, file.Contents);
-            DEBUGPlatformFreeFileMemory(file.Contents);
+            memory->DEBUGPlatformWriteEntireFile("W:/data/test.out", file.ContentSize, file.Contents);
+            memory->DEBUGPlatformFreeFileMemory(file.Contents);
         }
         
         gameState->ToneHz = 412;
+        gameState->tSine = 0.0f;
+        
+        memory->IsInitialized = true;
     }
     
     
@@ -97,8 +97,8 @@ internal void GameUpdateAndRender(game_memory *memory,
     GameRender(screenBuffer, gameState->XOffset, gameState->YOffset);
 }
 
-internal void GameGetSoundSamples(game_memory *memory, game_sound_output_buffer *soundBuffer)
+extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
 {
     game_state *gameState = (game_state*)memory->PermanentStorage;      
-    GameOutputSound(soundBuffer, gameState->ToneHz);
+    GameOutputSound(soundBuffer, gameState, gameState->ToneHz);
 }
