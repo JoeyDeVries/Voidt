@@ -34,6 +34,7 @@ void GameOutputSound(game_sound_output_buffer *soundBuffer, game_state *gameStat
     {
         real32 sineValue = sinf((real32)gameState->tSine);
         int16 sampleValue = (int16)(sineValue * toneVolume);
+        sampleValue = 0; // disable
         *sampleOut++ = sampleValue;
         *sampleOut++ = sampleValue;
         
