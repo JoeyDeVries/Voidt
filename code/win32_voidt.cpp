@@ -19,6 +19,47 @@
 #include "win32_voidt.h"
 
 
+
+internal void CatStrings(size_t sourceACount, char *sourceA, size_t sourceBCount, char *sourceB, size_t destCount, char *dest)
+{
+    for(int i = 0; i < sourceACount; ++i)
+    {
+        *dest++ = *sourceA++;
+    }
+    for(int i = 0; i < sourceBCount; ++i)
+    {
+        *dest++ = *sourceB++;
+    }
+    *dest++ = 0;
+}    
+
+internal int StringLength(char *string)
+{
+    int count = 0;
+    while(*string++)
+        ++count;
+    return count;    
+}
+
+internal void Win32GetEXEFileName(win32_state *state)
+{
+    DWORD sizeOfFilename = GetModuleFileNameA(0, state->EXEFileName, sizeof(state->EXEFileName));
+    state->OnePastLastEXEFileNameSlash = state->EXEFileName;
+    for(char *scan = state->EXEFileName; *scan; ++scan)
+    {
+        if(*scan == '\\')
+            state->OnePastLastEXEFileNameSlash = scan + 1;
+    }
+}
+
+internal void Win32BuildEXEPathFileName(win32_state *state, char *fileName, int destCount, char *dest)
+{
+    CatStrings(state->OnePastLastEXEFileNameSlash - state->EXEFileName, state->EXEFileName,
+               StringLength(fileName), fileName, 
+               destCount, dest);
+}
+      
+
 inline uint32 SafeTruncateUInt64(uint64 value)
 {
     Assert(value < 0xFFFFFFFF); // make sure size is less than 32 bits 4GB (or we have to loop for larger files)
@@ -93,13 +134,10 @@ inline FILETIME Win32GetLastWriteTime(char *fileName)
 {
     FILETIME lastWriteTime = {};
     
-    WIN32_FIND_DATA findData;
-    HANDLE findHandle = FindFirstFile(fileName, &findData);
-    if(findHandle != INVALID_HANDLE_VALUE)
-    {
-        lastWriteTime = findData.ftLastWriteTime;
-        FindClose(findHandle);
-    }
+    WIN32_FILE_ATTRIBUTE_DATA data;
+    if(GetFileAttributesEx(fileName, GetFileExInfoStandard, &data))
+        lastWriteTime = data.ftLastWriteTime;
+    
     return lastWriteTime;
 }
 
@@ -280,7 +318,7 @@ internal void Win32DisplayBufferInWindow(HDC device, win32_offscreen_buffer *Buf
 {    
 	// copies from one rectangle to the other, possibly stretching
 	StretchDIBits(device, 
-        0, 0, WindowWidth, WindowHeight,
+        0, 0, Buffer->Width, Buffer->Height,
         0, 0, Buffer->Width, Buffer->Height,
 		Buffer->Memory, 
 		&Buffer->Info,
@@ -439,24 +477,24 @@ inline real32 Win32GetSecondsElapsed(LARGE_INTEGER start, LARGE_INTEGER end)
     real32 result  = (real32)(end.QuadPart - start.QuadPart) / (real32)GlobalPerfCountFrequency.QuadPart;
     return result;
 }
-                                   
-                    
-internal void CatStrings(size_t sourceACount, char *sourceA, size_t sourceBCount, char *sourceB, size_t destCount, char *dest)
+                
+
+internal void Win32GetInputFileLocation(win32_state *state, int slotIndex, int destCount, char *dest)
 {
-    for(int i = 0; i < sourceACount; ++i)
-    {
-        *dest++ = *sourceA++;
-    }
-    for(int i = 0; i < sourceBCount; ++i)
-    {
-        *dest++ = *sourceB++;
-    }
-    *dest++ = 0;
+    Assert(slotIndex == 1);
+    Win32BuildEXEPathFileName(state, "inp_rcd.vri", destCount, dest);
 }    
+                   
 internal void Win32BeginRecordingInput(win32_state *win32State, int inputRecordingIndex)
 {
     win32State->InputRecordingIndex = inputRecordingIndex;    
-    win32State->RecordingHandle = CreateFile("inp_rcd.vri", GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    
+    char fileName[MAX_PATH];
+    Win32GetInputFileLocation(win32State, inputRecordingIndex, sizeof(fileName) - 1, fileName);
+    
+    win32State->RecordingHandle = CreateFile(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+    // DWORD ignored;
+    // DeviceIoControl(win32State->RecordingHandle, FSCTL_SET_SPARSE, 0, 0, 0, 0, &ignored, 0);
     
     DWORD bytesToWrite = (DWORD)win32State->TotalSize;
     Assert(win32State->TotalSize == bytesToWrite);
@@ -473,7 +511,11 @@ internal void Win32EndRecordingInput(win32_state *win32State)
 internal void Win32BeginInputPlayback(win32_state *win32State, int inputPlayingIndex)
 {
     win32State->InputPlayingIndex = inputPlayingIndex;
-    win32State->PlaybackHandle = CreateFileA("inp_rcd.vri", GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    
+    char fileName[MAX_PATH];
+    Win32GetInputFileLocation(win32State, inputPlayingIndex, sizeof(fileName) - 1, fileName);
+    
+    win32State->PlaybackHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     
     DWORD bytesToRead = (DWORD)win32State->TotalSize;
     Assert(win32State->TotalSize == bytesToRead);
@@ -611,7 +653,7 @@ internal void Win32ProcessPendingMessages(win32_state *win32State, game_controll
         }                                              
     }
 }
-      
+
 
 int CALLBACK WinMain(
 	HINSTANCE instance,
@@ -619,23 +661,14 @@ int CALLBACK WinMain(
 	LPSTR cmdLine,
 	int cmdShow)
 {
-    // get executable directory
-    char EXEFileName[MAX_PATH];
-    DWORD sizeOfFilename = GetModuleFileNameA(0, EXEFileName, sizeof(EXEFileName));
-    char *onePastLastSlash = EXEFileName;
-    for(char *scan = EXEFileName; *scan; ++scan)
-    {
-        if(*scan == '\\')
-            onePastLastSlash = scan + 1;
-    }
+    win32_state win32State = {};
     
-    char sourceGameCodeDLLFilename[] = "voidt.dll";
+    Win32GetEXEFileName(&win32State);
     char sourceGameCodeDLLFullPath[MAX_PATH];
-    CatStrings(onePastLastSlash - EXEFileName, EXEFileName, sizeof(sourceGameCodeDLLFilename) - 1, sourceGameCodeDLLFilename, sizeof(sourceGameCodeDLLFullPath), sourceGameCodeDLLFullPath);
-    char tempGameCodeDLLFilename[] = "voidt_temp.dll";
+    Win32BuildEXEPathFileName(&win32State, "voidt.dll", sizeof(sourceGameCodeDLLFullPath), sourceGameCodeDLLFullPath);
     char tempGameCodeDLLFullPath[MAX_PATH];
-    CatStrings(onePastLastSlash - EXEFileName, EXEFileName, sizeof(tempGameCodeDLLFilename) - 1, tempGameCodeDLLFilename, sizeof(tempGameCodeDLLFullPath), tempGameCodeDLLFullPath);
-    
+    Win32BuildEXEPathFileName(&win32State, "voidt_temp.dll", sizeof(tempGameCodeDLLFullPath), tempGameCodeDLLFullPath);
+   
     
 	// MessageBox(0, "Sup G", "Joey", MB_OK | MB_ICONINFORMATION);	
     Win32LoadXInput();
@@ -662,12 +695,12 @@ int CALLBACK WinMain(
     int gameUpdateHz = monitorRefreshHz / 2;
     real32 targetSecondsPerFrame = 1.0f / (real32)gameUpdateHz;
     
-    win32_state win32State = {};
+
     
 	if(RegisterClass(&WindowClass))
 	{
 		HWND Window = CreateWindowEx(
-			WS_EX_TOPMOST|WS_EX_LAYERED,
+			0, //WS_EX_TOPMOST|WS_EX_LAYERED,
 			WindowClass.lpszClassName,
 			"Joey game",
 			WS_OVERLAPPEDWINDOW | WS_VISIBLE,
@@ -779,6 +812,7 @@ int CALLBACK WinMain(
                             // the controller is plugged in
                             XINPUT_GAMEPAD *Pad = &ControllerState.Gamepad;       
                             newController->IsConnected = true;                            
+                            newController->IsAnalog = oldController->IsAnalog;                            
                             
                             // thumbsticks
                             real32 stickX = 0.0f;

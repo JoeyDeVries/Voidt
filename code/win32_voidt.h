@@ -55,6 +55,9 @@ struct win32_state
     HANDLE PlaybackHandle;
     int InputPlayingIndex;
     
+    char EXEFileName[MAX_PATH];
+    char *OnePastLastEXEFileNameSlash;
+    
 };
 
 // ----------------------------------------------------------------------------
