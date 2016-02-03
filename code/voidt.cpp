@@ -51,12 +51,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if(!memory->IsInitialized)
     {        
         char *fileName = __FILE__;
-        debug_read_file_result file = memory->DEBUGPlatformReadEntireFile(fileName);
+        debug_read_file_result file = memory->DEBUGPlatformReadEntireFile(thread, fileName);
         
         if(file.Contents)
         {
-            memory->DEBUGPlatformWriteEntireFile("W:/data/test.out", file.ContentSize, file.Contents);
-            memory->DEBUGPlatformFreeFileMemory(file.Contents);
+            memory->DEBUGPlatformWriteEntireFile(thread, "W:/data/test.out", file.ContentSize, file.Contents);
+            memory->DEBUGPlatformFreeFileMemory(thread, file.Contents);
         }
         
         gameState->ToneHz = 412;

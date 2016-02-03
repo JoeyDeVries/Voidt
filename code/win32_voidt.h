@@ -31,7 +31,7 @@ struct win32_sound_output
     int    samplesPerSecond;     
     int    bytesPerSample;    
     DWORD  secondaryBufferSize;    
-    int    latencySampleCount; // how many samples ahead of the play cursor we'd like to be
+    // int    latencySampleCount; // how many samples ahead of the play cursor we'd like to be
     DWORD  SafetyBytes;
 };
 
@@ -45,10 +45,15 @@ struct win32_game_code
     bool32 IsValid;
 };
 
+struct win32_replay_buffer
+{
+    void *MemoryBlock;
+};
 struct win32_state 
 {
     uint64 TotalSize;
     void* GameMemoryBlock;
+    win32_replay_buffer ReplayBuffers[4];
     
     HANDLE RecordingHandle;
     int InputRecordingIndex;
