@@ -723,7 +723,7 @@ int CALLBACK WinMain(
     
 	WNDCLASS WindowClass = {};
     
-    Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
+    Win32ResizeDIBSection(&GlobalBackBuffer, 960, 540);
 	
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW;
 	WindowClass.lpfnWndProc = Win32MainWindowCallBack;
@@ -822,6 +822,7 @@ int CALLBACK WinMain(
                 game_input input[2] = {};
                 game_input *newInput = &input[0];
                 game_input *oldInput = &input[1];
+                newInput->SecondsToAdvanceOverUpdate = targetSecondsPerFrame;
                 
                 bool32 soundIsValid = false;
                 DWORD audioLatencyBytes = 0;

@@ -104,6 +104,8 @@ struct game_input
     game_button_state MouseButtons[5];
     int32 MouseX, MouseY, MouseZ;
 
+    real32 SecondsToAdvanceOverUpdate;
+    
     game_controller_input Controllers[5]; // [0] = keyboard, [1-4] = gamepads
 };
 inline game_controller_input* GetController(game_input *input, uint32 controllerIndex)
@@ -116,10 +118,10 @@ inline game_controller_input* GetController(game_input *input, uint32 controller
 
 struct game_state
 {
-    int32 ToneHz;
-    int32 XOffset;
-    int32 YOffset;    
-    real32 tSine;
+    // int32 ToneHz;
+    // int32 XOffset;
+    // int32 YOffset;    
+    // real32 tSine;
 };
 
 struct thread_context
