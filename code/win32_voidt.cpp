@@ -316,9 +316,14 @@ internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int width, i
 
 internal void Win32DisplayBufferInWindow(HDC device, win32_offscreen_buffer *Buffer, int32 WindowWidth, int32 WindowHeight)
 {    
+    // PatBlt(device, 0, 0, WindowWidth, WindowHeight, BLACKNESS);
+    
+    int offsetX = 10;
+    int offsetY = 10;
+
 	// copies from one rectangle to the other, possibly stretching
 	StretchDIBits(device, 
-        0, 0, Buffer->Width, Buffer->Height,
+        offsetX, offsetY, Buffer->Width, Buffer->Height,
         0, 0, Buffer->Width, Buffer->Height,
 		Buffer->Memory, 
 		&Buffer->Info,
@@ -735,7 +740,8 @@ int CALLBACK WinMain(
     // sets the scheduler granularity to 1ms so that our
     // sleep() is more accurate
     UINT desiredSchedulerMS = 1;
-    timeBeginPeriod(desiredSchedulerMS);
+    bool32 sleepIsGranular = timeBeginPeriod(desiredSchedulerMS) == TIMERR_NOERROR;
+        
        
     
     
@@ -1061,9 +1067,11 @@ int CALLBACK WinMain(
                     real32 secondsElapsedForFrame = workSecondsElapsed;
                     if(secondsElapsedForFrame < targetSecondsPerFrame)
                     {
-                        DWORD sleepMS = (DWORD)(1000.0f * (targetSecondsPerFrame - secondsElapsedForFrame));
-                        if(sleepMS > 0)                                
-                            Sleep(sleepMS);
+                        if(sleepIsGranular)
+                        {
+                            DWORD sleepMS = (DWORD)(1000.0f * (targetSecondsPerFrame - secondsElapsedForFrame) - 0.5f); // - 0.5 due to sleep not accurate enough on exact ms
+                            if(sleepMS > 0)  Sleep(sleepMS);                        
+                        }
                         while(secondsElapsedForFrame < targetSecondsPerFrame)
                         {                 
                             secondsElapsedForFrame = Win32GetSecondsElapsed(lastCounter, Win32GetWallClock());
@@ -1073,10 +1081,11 @@ int CALLBACK WinMain(
                     {   // Missed frame rate! 
                         // TODO(Joey): diagnostics - log this!                        
                     }
+                                     
                     // get timer stats at end of frame
                     LARGE_INTEGER endCounter = Win32GetWallClock();
                     real32 msPerFrame        = 1000.0f * Win32GetSecondsElapsed(lastCounter, endCounter);
-                    lastCounter = endCounter;                                      
+                    lastCounter = endCounter;     
                  
                     // display frame to monitor (w/ blit)
                     win32_window_dimension Dimension = Win32GetWindowDimension(Window);     
@@ -1088,14 +1097,14 @@ int CALLBACK WinMain(
                     // swap input
                     game_input *temp = newInput;
                     newInput = oldInput;
-                    oldInput = temp;                                      
+                    oldInput = temp;                                     
                     // timer - cycles
                     uint64 endCycleCount = __rdtsc();
                     uint64 cyclesElapsed  = endCycleCount - lastCycleCount;
                     lastCycleCount = endCycleCount;                    
                     // timer - print debug timing info
-                    real32 fps           = (real32)GlobalPerfCountFrequency.QuadPart / (real32)endCounter.QuadPart;
-                    real32 mcpf          = (real32)(cyclesElapsed / (1000.0f * 1000.0f)); // mega-cycles per frame                    
+                    real64 fps           = (real64)GlobalPerfCountFrequency.QuadPart / (real64)endCounter.QuadPart;
+                    real64 mcpf          = (real64)(cyclesElapsed / (1000.0f * 1000.0f)); // mega-cycles per frame                    
                     char charBuffer[256];
                     _snprintf_s(charBuffer, sizeof(charBuffer), "%.02fms/f / %.02ff/s  -  %.02fmc/f\n", msPerFrame, fps, mcpf); 
                     OutputDebugStringA(charBuffer);
