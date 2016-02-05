@@ -3,10 +3,12 @@
 
 internal int32 RoundReal32ToInt32(real32 value)
 {
-    // int32 result = (int32)value;
-    // if(value - (real32)result >= 0.5)
-        // ++result;
     return (int32)(value + 0.5f);
+}
+
+internal uint32 RoundReal32ToUint32(real32 value)
+{
+    return (uint32)(value + 0.5f);
 }
 
 internal void DrawRectangle(game_offscreen_buffer *buffer, real32 realMinX, real32 realMinY, real32 realMaxX, real32 realMaxY, real32 r, real32 g, real32 b)
@@ -21,6 +23,11 @@ internal void DrawRectangle(game_offscreen_buffer *buffer, real32 realMinX, real
     if(maxX > buffer->Width) maxX = buffer->Width;
     if(maxY > buffer->Height) maxY = buffer->Height;
     
+    // BIT PATTERN: 0x AA RR GG BB
+    uint32 color = (RoundReal32ToUint32(r * 255.0f) << 16) |
+                   (RoundReal32ToUint32(g * 255.0f) << 8) |
+                   (RoundReal32ToUint32(b * 255.0f) << 0);
+        
     uint8* row = (uint8*)buffer->Memory + minX * buffer->BytesPerPixel + minY * buffer->Pitch;
     
     for(int y = minY; y < maxY; ++y)
@@ -28,14 +35,14 @@ internal void DrawRectangle(game_offscreen_buffer *buffer, real32 realMinX, real
         uint32* pixel = (uint32*)row;
         for(int x = minX; x < maxX; ++x)
         {            
-            *pixel++ = 0xFFFFFFFF;        
+            *pixel++ = color;        
         }          
         row += buffer->Pitch;
     }
     
 }
 
-void GameRender(game_offscreen_buffer *buffer)
+void GameRender(game_offscreen_buffer *buffer, game_state *state)
 {
     // int XOffset = 0;
     // int YOffset = 0;
@@ -53,9 +60,54 @@ void GameRender(game_offscreen_buffer *buffer)
             // *Pixel++ = (Red << 16) | (Green << 8) | Blue;
         // }
         // row += screenBuffer->Pitch;
-    // }            
-    // DrawRectangle(buffer, 0.0f, 0.0f, (real32)buffer->Width, (real32)buffer->Height, 0.1f, 0.5f, 0.7f);
-    DrawRectangle(buffer, 50.7f, 50.3f, 100.0f, 100.0f, 1.0f, 0.5f, 0.5f);
+    // }           
+
+    uint32 tileMap[9][17] = 
+    {
+        {0, 0, 0, 0,  0, 0, 0, 0,  1, 0, 0, 0,  1, 0, 0, 0,  1 },  
+        {0, 1, 0, 0,  0, 1, 0, 0,  1, 0, 0, 0,  0, 1, 0, 0,  1 },  
+        {0, 1, 0, 0,  0, 0, 0, 0,  1, 0, 0, 0,  0, 0, 1, 0,  1 },  
+        {0, 0, 0, 0,  0, 0, 0, 0,  1, 0, 0, 0,  0, 0, 0, 1,  1 },  
+        {0, 1, 0, 0,  0, 1, 0, 0,  1, 0, 0, 0,  0, 0, 1, 0,  1 },  
+        {0, 1, 0, 0,  0, 1, 0, 0,  1, 0, 0, 0,  0, 1, 0, 0,  1 },  
+        {0, 0, 0, 0,  0, 1, 0, 0,  1, 0, 0, 0,  1, 0, 0, 0,  1 },  
+        {0, 1, 1, 1,  1, 0, 0, 1,  1, 0, 0, 0,  0, 1, 0, 0,  1 },  
+        {0, 0, 0, 0,  0, 0, 0, 0,  1, 0, 0, 0,  0, 0, 1, 0,  1 },         
+    };
+    
+    DrawRectangle(buffer, 0.0f, 0.0f, (real32)buffer->Width, (real32)buffer->Height, 1.0f, 0.5f, 0.0f);
+    
+    real32 upperLeftX = -30;
+    real32 upperLeftY = 0;
+    real32 tileWidth = 60;
+    real32 tileHeight = 60;
+    
+    for(int row = 0; row < 9; ++row)
+    {
+        for(int col = 0; col < 17; ++col)
+        {
+            uint32 tileID = tileMap[row][col];
+            real32 gray = tileID == 1 ? 1.0f : 0.5f;
+         
+            
+            real32 minX = upperLeftX + ((real32)col * tileWidth);
+            real32 minY = upperLeftY + ((real32)row * tileHeight);
+            real32 maxX = minX + tileWidth;
+            real32 maxY = minY + tileHeight;
+            DrawRectangle(buffer, minX, minY, maxX, maxY, 0.3f, gray, gray);
+            
+        }        
+    }
+    
+    real32 playerR = 1.0f;
+    real32 playerG = 0.5f;
+    real32 playerB = 0.0f;
+    real32 playerWidth = 0.75f*tileWidth;
+    real32 playerHeight = tileHeight;
+    real32 playerLeft = state->PlayerX - 0.5f*playerWidth;
+    real32 playerTop = state->PlayerY - playerHeight;
+    
+    DrawRectangle(buffer, playerLeft, playerTop, playerLeft + playerWidth, playerTop + playerHeight, playerR, playerG, playerB);
 }
 
 
@@ -87,6 +139,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     game_state *gameState = (game_state*)memory->PermanentStorage;    
     if(!memory->IsInitialized)
     {                       
+        gameState->PlayerX = 200.0f;
+        gameState->PlayerY = 200.0f;
         memory->IsInitialized = true;
     }
     
@@ -98,14 +152,28 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         {
             // analog movement tuning
         }
-        else
-        {
+        // else
+        // {
             // digital movement tuning
-        }
+            real32 dPlayerX = 0.0f;
+            real32 dPlayerY = 0.0f;
+            
+            if(controller->MoveUp.EndedDown)
+                dPlayerY = -50.0f;
+            if(controller->MoveDown.EndedDown)
+                dPlayerY =  50.0f;
+            if(controller->MoveLeft.EndedDown)
+                dPlayerX = -50.0f;
+            if(controller->MoveRight.EndedDown)
+                dPlayerX =  50.0f;
+            
+            gameState->PlayerX += input->dtPerFrame * dPlayerX;
+            gameState->PlayerY += input->dtPerFrame * dPlayerY;
+        // }
     }
     
   
-    GameRender(screenBuffer);
+    GameRender(screenBuffer, gameState);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)

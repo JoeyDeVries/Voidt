@@ -821,8 +821,7 @@ int CALLBACK WinMain(
             
                 game_input input[2] = {};
                 game_input *newInput = &input[0];
-                game_input *oldInput = &input[1];
-                newInput->SecondsToAdvanceOverUpdate = targetSecondsPerFrame;
+                game_input *oldInput = &input[1];               
                 
                 bool32 soundIsValid = false;
                 DWORD audioLatencyBytes = 0;
@@ -838,6 +837,8 @@ int CALLBACK WinMain(
                 uint64 lastCycleCount = __rdtsc();                       
                 while(GlobalRunning)
                 {              
+                    newInput->dtPerFrame = targetSecondsPerFrame;
+             
                     FILETIME newDLLWriteTime = Win32GetLastWriteTime(sourceGameCodeDLLFullPath);
                     if(CompareFileTime(&game.DLLLastWriteTime, &newDLLWriteTime) != 0)
                     {

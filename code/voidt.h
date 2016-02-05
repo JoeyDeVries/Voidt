@@ -104,7 +104,7 @@ struct game_input
     game_button_state MouseButtons[5];
     int32 MouseX, MouseY, MouseZ;
 
-    real32 SecondsToAdvanceOverUpdate;
+    real32 dtPerFrame;
     
     game_controller_input Controllers[5]; // [0] = keyboard, [1-4] = gamepads
 };
@@ -118,10 +118,8 @@ inline game_controller_input* GetController(game_input *input, uint32 controller
 
 struct game_state
 {
-    // int32 ToneHz;
-    // int32 XOffset;
-    // int32 YOffset;    
-    // real32 tSine;
+    real32 PlayerX;
+    real32 PlayerY;
 };
 
 struct thread_context
@@ -188,9 +186,9 @@ struct game_memory
 // ----------------------------------------------------------------------------
 //      Services that the game provides to the platform layer
 // ----------------------------------------------------------------------------
-void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int yOffset);
+// void GameRender(game_offscreen_buffer *screenBuffer, int xOffset, int yOffset);
 
-void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz);
+// void GameOutputSound(game_sound_output_buffer *soundBuffer, int toneHz);
 
 
 #define GAME_UPDATE_AND_RENDER(name) void name(thread_context* thread, game_memory *memory, game_input *input, game_offscreen_buffer *screenBuffer)
