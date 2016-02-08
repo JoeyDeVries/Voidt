@@ -119,7 +119,7 @@ internal void CorrectWorldCoord(game_world *world, int32 tileCount, int32 *tileM
     *tileRel -= tileOverflow*world->TileSideInMeters;
     
     Assert(*tileRel >= 0);
-    Assert(*tileRel < world->TileSideInMeters);
+    Assert(*tileRel <= world->TileSideInMeters);
     
     if(*tile < 0)
     {
@@ -227,8 +227,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     world.TileSideInPixels = 60;
     world.MetersToPixels = world.TileSideInPixels / world.TileSideInMeters;    
     
-    world.UpperLeftX = -world.TileSideInPixels / 2.0f;
-    world.UpperLeftY = 0;
+    world.LowerLeftX = -world.TileSideInPixels / 2.0f;
+    world.LowerLeftY = screenBuffer->Height;
       
     tileMaps[0][0].Tiles = (uint32 *)tiles00;
     tileMaps[1][0].Tiles = (uint32 *)tiles01;
@@ -245,10 +245,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {                  
         gameState->PlayerPos.TileMapX = 0;
         gameState->PlayerPos.TileMapY = 0;        
-        gameState->PlayerPos.TileX = 3;
+        gameState->PlayerPos.TileX = 1;
         gameState->PlayerPos.TileY = 3;
-        gameState->PlayerPos.TileRelX = 0.0f;
-        gameState->PlayerPos.TileRelY = 0.0f;
+        gameState->PlayerPos.TileRelX = 0.5f;
+        gameState->PlayerPos.TileRelY = 0.5f;
 
         memory->IsInitialized = true;
     }
@@ -278,9 +278,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             real32 dPlayerY = 0.0f;
             
             if(controller->MoveUp.EndedDown)
-                dPlayerY = -1.0f;
-            if(controller->MoveDown.EndedDown)
                 dPlayerY =  1.0f;
+            if(controller->MoveDown.EndedDown)
+                dPlayerY = -1.0f;
             if(controller->MoveLeft.EndedDown)
                 dPlayerX = -1.0f;
             if(controller->MoveRight.EndedDown)
@@ -326,16 +326,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             real32 gray = tileID == 1 ? 1.0f : 0.5f;
          
             
-            real32 minX = world.UpperLeftX + ((real32)col * world.TileSideInPixels);
-            real32 minY = world.UpperLeftY + ((real32)row * world.TileSideInPixels);
+            real32 minX = world.LowerLeftX + ((real32)col * world.TileSideInPixels);
+            real32 minY = world.LowerLeftY - ((real32)row * world.TileSideInPixels);
             real32 maxX = minX + world.TileSideInPixels;
-            real32 maxY = minY + world.TileSideInPixels;
-            DrawRectangle(screenBuffer, minX, minY, maxX, maxY, 0.3f, gray, gray);
+            real32 maxY = minY - world.TileSideInPixels;
+            DrawRectangle(screenBuffer, minX, maxY, maxX, minY, 0.3f, gray, gray);
             
         }        
     }
-    real32 playerLeft = world.UpperLeftX + gameState->PlayerPos.TileX*world.TileSideInPixels + world.MetersToPixels*gameState->PlayerPos.TileRelX  - 0.5f*world.MetersToPixels*playerWidth;
-    real32 playerTop = world.UpperLeftY + gameState->PlayerPos.TileY*world.TileSideInPixels + world.MetersToPixels*gameState->PlayerPos.TileRelY  - world.MetersToPixels*playerHeight;
+    real32 playerLeft = world.LowerLeftX + gameState->PlayerPos.TileX*world.TileSideInPixels + world.MetersToPixels*gameState->PlayerPos.TileRelX  - 0.5f*world.MetersToPixels*playerWidth;
+    real32 playerTop = world.LowerLeftY - gameState->PlayerPos.TileY*world.TileSideInPixels - world.MetersToPixels*gameState->PlayerPos.TileRelY - world.MetersToPixels*playerHeight;
     real32 playerR = 1.0f;
     real32 playerG = 0.5f;
     real32 playerB = 0.0f;

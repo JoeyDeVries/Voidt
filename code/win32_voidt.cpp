@@ -1,14 +1,19 @@
 
 
-// NOTE(Joey): utilize a unity build approach 
-// (I personally dislike the approach and support a more modular
-//  linkage build generating an array of link object files, with
-//  the notable requirement of each .cpp and .h file being 
-//  largely self-contained s.t. the build configuration only 
-//  renders small number of files which keeps things as fast and
-//  probably faster in the end, while keeping the code modular)
-//  - I still take the approach seeing as it is an interesting
-//    educational oppertunity regarding build/compiler configs.
+/* NOTE(Joey): 
+    
+  Utilize a unity build approach.
+   
+  (I personally dislike the approach and support a more modular
+  linkage build generating an array of link object files, with
+  the notable requirement of each .cpp and .h file being 
+  largely self-contained s.t. the build configuration only 
+  renders small number of files which keeps things as fast and
+  probably faster in the end, while keeping the code modular).
+   
+  I still take the approach seeing as it is an interesting
+  educational oppertunity regarding build/compiler configs.
+*/
 #include "voidt.h"
 
 #include <windows.h>

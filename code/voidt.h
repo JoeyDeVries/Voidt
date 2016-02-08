@@ -54,8 +54,8 @@ struct game_world
     int32 TileCountX;
     int32 TileCountY;    
 
-    real32 UpperLeftX;
-    real32 UpperLeftY;
+    real32 LowerLeftX;
+    real32 LowerLeftY;
     
     tile_map *TileMaps;
 };
