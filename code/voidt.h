@@ -35,13 +35,17 @@ inline game_controller_input* GetController(game_input *input, uint32 controller
 }
 
 
-struct tile_map
+struct tile_chunk
 {    
     uint32 *Tiles;
 };
 
 struct game_world
 {
+    uint32 ChunkShift;
+    uint32 ChunkMask;
+    uint32 ChunkDim;
+    
     real32 TileSideInMeters;
     int32  TileSideInPixels;
     real32 MetersToPixels;
@@ -51,25 +55,28 @@ struct game_world
     int32 CountY;
     
     // number of static tiles per tilemap
-    int32 TileCountX;
-    int32 TileCountY;    
+    int32 TileChunkCountX;
+    int32 TileChunkCountY;    
 
-    real32 LowerLeftX;
-    real32 LowerLeftY;
+    tile_chunk *TileChunks;
+};
+
+struct tile_chunk_position
+{
+    uint32 TileChunkX;
+    uint32 TileChunkY;
     
-    tile_map *TileMaps;
+    uint32 RelTileX;
+    uint32 RelTileY;    
 };
 
 struct world_position
 {
-    int32 TileMapX;
-    int32 TileMapY;
-
-    int32 TileX; // virtual page system (first 28 bits tileMapIndex, last 4 bits tileX)
-    int32 TileY;
+    uint32 AbsTileX; // virtual page system (first 28 bits tileMapIndex, last 4 bits tileX)
+    uint32 AbsTileY;
     
-    real32 TileRelX;
-    real32 TileRelY;    
+    real32 OffsetX;
+    real32 OffsetY;    
 };
 
 struct game_state
