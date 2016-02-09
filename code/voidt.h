@@ -2,9 +2,7 @@
 #define VOIDT_H
 
 #include "voidt_platform.h"
-
-
-
+#include "map.h"
 
 // ----------------------------------------------------------------------------
 //      PRE-PROCESSOR UTILITY
@@ -34,54 +32,23 @@ inline game_controller_input* GetController(game_input *input, uint32 controller
     return result;
 }
 
-
-struct tile_chunk
-{    
-    uint32 *Tiles;
+struct memory_arena 
+{
+    uint8 *Base;
+    memory_index Size;
+    memory_index Used;
 };
 
 struct game_world
 {
-    uint32 ChunkShift;
-    uint32 ChunkMask;
-    uint32 ChunkDim;
-    
-    real32 TileSideInMeters;
-    int32  TileSideInPixels;
-    real32 MetersToPixels;
-    
-    // dimensions of tilemaps array
-    int32 CountX;
-    int32 CountY;
-    
-    // number of static tiles per tilemap
-    int32 TileChunkCountX;
-    int32 TileChunkCountY;    
-
-    tile_chunk *TileChunks;
-};
-
-struct tile_chunk_position
-{
-    uint32 TileChunkX;
-    uint32 TileChunkY;
-    
-    uint32 RelTileX;
-    uint32 RelTileY;    
-};
-
-struct world_position
-{
-    uint32 AbsTileX; // virtual page system (first 28 bits tileMapIndex, last 4 bits tileX)
-    uint32 AbsTileY;
-    
-    real32 OffsetX;
-    real32 OffsetY;    
+    tile_map *TileMap;   
 };
 
 struct game_state
 {
-    world_position PlayerPos;
+    memory_arena WorldArena;
+    game_world *World;
+    tile_map_position PlayerPos;
 };
 
 
