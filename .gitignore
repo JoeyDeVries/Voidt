@@ -1,5 +1,6 @@
 # Build results
 build/
+data/
 
 # File extensions
 *_i.c
