@@ -56,8 +56,25 @@ internal void DrawBitmap(game_offscreen_buffer *buffer, loaded_bitmap *bitmap, r
         uint32 *dest = (uint32*)destRow;
         uint32 *source = (uint32*)sourceRow;
         for(int x = minX; x < maxX; ++x)
-        {            
-            *dest++ = *source++;        
+        {          
+            real32 A = (real32)((*source >> 24) & 0xFF) / 255.0f;
+            real32 SR = (real32)((*source >> 16) & 0xFF);
+            real32 SG = (real32)((*source >> 8) & 0xFF);
+            real32 SB = (real32)((*source >> 0) & 0xFF);
+            
+            real32 DR = (real32)((*dest >> 16) & 0xFF);
+            real32 DG = (real32)((*dest >> 8) & 0xFF);
+            real32 DB = (real32)((*dest >> 0) & 0xFF);
+    
+            real32 R = (1.0f - A)*DR + A*SR;
+            real32 G = (1.0f - A)*DG + A*SG;
+            real32 B = (1.0f - A)*DB + A*SB;
+            
+            *dest = ((uint32)(R + 0.5) << 16) |
+                    ((uint32)(G + 0.5) << 8) |
+                    ((uint32)(B + 0.5) << 0);
+    
+            dest++; source++;
         }          
         destRow += buffer->Pitch;
         sourceRow -= bitmap->Width;
@@ -128,6 +145,8 @@ void GameOutputSound(game_sound_output_buffer *soundBuffer, game_state *gameStat
 // }
 
 
+
+
 #pragma pack(push, 1)
 struct bitmap_header
 {
@@ -168,17 +187,40 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *thread, debug_platform_read_
         result.Width= header->Width;
         result.Height = header->Height;
         
-        // byte order in memory is AA BB GG RR (AA first in lowest memory address), bottom upper_bound
+        // NOTE(Joey): byte order in memory is AA BB GG RR (AA first in lowest memory address), bottom upper_bound
         // CPU reads it in as: RR GG BB AA (first reads AA, then BB)
         // we need AA first so switch AA to the back for each pixel
+        // !!!actually: byte order is determined by the header itself with 3 masks for each individual color
+        
+        uint32 redMask = header->RedMask;
+        uint32 greenMask = header->GreenMask;
+        uint32 blueMask = header->BlueMask;
+        uint32 alphaMask = ~(redMask | greenMask | blueMask);
+        
+        uint32 redShift = 0;
+        uint32 greenShift = 0;
+        uint32 blueShift = 0;
+        uint32 alphaShift = 0;              
+        
+        bool32 found = FindLeastSignificantSetBit(&redShift, redMask);
+        Assert(found);
+        found = FindLeastSignificantSetBit(&greenShift, greenMask);
+        Assert(found);
+        found = FindLeastSignificantSetBit(&blueShift, blueMask);
+        Assert(found);
+        found = FindLeastSignificantSetBit(&alphaShift, alphaMask);
+        Assert(found);
         
         uint32 *sourceDest = pixels;
         for(int32 y = 0; y < result.Height; ++y)
         {
             for(int x = 0; x < result.Width; ++x)
             {
-                *sourceDest = (*sourceDest >> 8) | (*sourceDest << 24); // these operations are in little-endian o.O, not memory-space?
-                ++sourceDest;
+                uint32 C = *sourceDest;
+                *sourceDest++ = (((C >> alphaShift) & 0xFF) << 24) | 
+                                (((C >> redShift  ) & 0xFF) << 16) | 
+                                (((C >> greenShift) & 0xFF) << 8)  | 
+                                (((C >> blueShift ) & 0xFF) << 0); 
             }            
         }
     }
