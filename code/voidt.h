@@ -75,16 +75,27 @@ struct loaded_bitmap
     uint32 *Pixels;
 };
 
+struct hero_bitmaps
+{
+    int32 AlignX;
+    int32 AlignY;
+    loaded_bitmap Head;
+    loaded_bitmap Torso;
+    loaded_bitmap Cape;
+    
+};
+
 struct game_state
 {
     memory_arena WorldArena;
     game_world *World;
     tile_map_position PlayerPos;
+    tile_map_position CameraPos;
+    
     
     loaded_bitmap BackDrop;
-    loaded_bitmap HeroHead;
-    loaded_bitmap HeroTorso;
-    loaded_bitmap HeroCape;
+    hero_bitmaps HeroBitmaps[4];
+    uint32 HeroFacingDirection;
 };
 
 
