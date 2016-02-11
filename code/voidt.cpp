@@ -47,13 +47,29 @@ internal void DrawBitmap(game_offscreen_buffer *buffer, loaded_bitmap *bitmap, r
     
     int32 sourceOffsetX = 0; // fixing clipping
     int32 sourceOffsetY = 0;
-    if(minX < 0) minX = 0;
-    if(minY < 0) minY = 0;
-    if(maxX > buffer->Width) maxX = buffer->Width;
-    if(maxY > buffer->Height) maxY = buffer->Height;
+    if(minX < 0) 
+    {
+        sourceOffsetX = -minX;
+        minX = 0;
+    }
+    if(minY < 0)
+    {
+        sourceOffsetY = -minY;
+        minY = 0;
+    }
+    if(maxX > buffer->Width)
+    { 
+        maxX = buffer->Width;
+    }
+    if(maxY > buffer->Height) 
+    {
+        maxY = buffer->Height;
+    }
     
     
     uint32 *sourceRow = bitmap->Pixels + bitmap->Width*(bitmap->Height - 1); // start from top
+    sourceRow += -sourceOffsetY*bitmap->Width + sourceOffsetX; // offset source access by however much we clipped 
+    
     uint8 *destRow = (uint8*)buffer->Memory + minX * buffer->BytesPerPixel + minY * buffer->Pitch;
     
     for(int y = minY; y < maxY; ++y)
@@ -534,7 +550,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             uint32 row = relRow + gameState->CameraPos.AbsTileY;
             uint32 tileID = GetTileValue(tileMap, col, row, gameState->CameraPos.AbsTileZ);
             
-            if(tileID > 0)
+            if(tileID > 1)
             {
                 real32 gray = tileID == 2 ? 1.0f : 0.5f;
                 
