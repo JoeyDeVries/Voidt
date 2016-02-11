@@ -146,20 +146,24 @@ inline FILETIME Win32GetLastWriteTime(char *fileName)
     return lastWriteTime;
 }
 
-internal win32_game_code Win32LoadGameCode(char *sourceDLLName, char *tempDLLName)
+internal win32_game_code Win32LoadGameCode(char *sourceDLLName, char *tempDLLName, char *lockFileName)
 {
     win32_game_code result = {};
     
-    result.DLLLastWriteTime = Win32GetLastWriteTime(sourceDLLName);
-      
-    CopyFile(sourceDLLName, tempDLLName, FALSE);
-    result.GameCodeDLL = LoadLibraryA(tempDLLName);
-    if(result.GameCodeDLL)
+    WIN32_FILE_ATTRIBUTE_DATA ignored;
+    if(!GetFileAttributesEx(lockFileName, GetFileExInfoStandard, &ignored))
     {
-        result.UpdateAndRender = (game_update_and_render*)GetProcAddress(result.GameCodeDLL, "GameUpdateAndRender");
-        result.GetSoundSamples = (game_get_sound_samples*)GetProcAddress(result.GameCodeDLL, "GameGetSoundSamples");
-        
-        result.IsValid = result.UpdateAndRender && result.GetSoundSamples;
+        result.DLLLastWriteTime = Win32GetLastWriteTime(sourceDLLName);
+          
+        CopyFile(sourceDLLName, tempDLLName, FALSE);
+        result.GameCodeDLL = LoadLibraryA(tempDLLName);
+        if(result.GameCodeDLL)
+        {
+            result.UpdateAndRender = (game_update_and_render*)GetProcAddress(result.GameCodeDLL, "GameUpdateAndRender");
+            result.GetSoundSamples = (game_get_sound_samples*)GetProcAddress(result.GameCodeDLL, "GameGetSoundSamples");
+            
+            result.IsValid = result.UpdateAndRender && result.GetSoundSamples;
+        }
     }
     
     if(!result.IsValid)
@@ -726,7 +730,8 @@ int CALLBACK WinMain(
     Win32BuildEXEPathFileName(&win32State, "voidt.dll", sizeof(sourceGameCodeDLLFullPath), sourceGameCodeDLLFullPath);
     char tempGameCodeDLLFullPath[MAX_PATH];
     Win32BuildEXEPathFileName(&win32State, "voidt_temp.dll", sizeof(tempGameCodeDLLFullPath), tempGameCodeDLLFullPath);
-   
+    char lockGameCodeDLLFullPath[MAX_PATH];
+    Win32BuildEXEPathFileName(&win32State, "lock.tmp", sizeof(lockGameCodeDLLFullPath), lockGameCodeDLLFullPath);
     
 	// MessageBox(0, "Sup G", "Joey", MB_OK | MB_ICONINFORMATION);	
     Win32LoadXInput();
@@ -843,7 +848,7 @@ int CALLBACK WinMain(
                 LARGE_INTEGER lastCounter = Win32GetWallClock();
                 LARGE_INTEGER flipWallClock = Win32GetWallClock();
                 
-                win32_game_code game = Win32LoadGameCode(sourceGameCodeDLLFullPath, tempGameCodeDLLFullPath);
+                win32_game_code game = Win32LoadGameCode(sourceGameCodeDLLFullPath, tempGameCodeDLLFullPath, lockGameCodeDLLFullPath);
                 
                 uint64 lastCycleCount = __rdtsc();                       
                 while(GlobalRunning)
@@ -854,7 +859,7 @@ int CALLBACK WinMain(
                     if(CompareFileTime(&game.DLLLastWriteTime, &newDLLWriteTime) != 0)
                     {
                         Win32UnloadGameCode(&game);
-                        game = Win32LoadGameCode(sourceGameCodeDLLFullPath, tempGameCodeDLLFullPath);
+                        game = Win32LoadGameCode(sourceGameCodeDLLFullPath, tempGameCodeDLLFullPath, lockGameCodeDLLFullPath);
                     }
             
                     //////////////////////////////////////////////////////////
