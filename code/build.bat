@@ -11,7 +11,9 @@ REM cl %CommonCompilerFlags% W:\code\win32_voidt.cpp /link -subsystem:windows,5.
 
 REM 64-bit build
 del *.pdb > NUL 2> NUL
+echo WAITING FOR PDB > lock.tmp
 cl %CommonCompilerFlags% W:\code\voidt.cpp -LD /link -incremental:no -PDB:voidt_%random%.pdb -EXPORT:GameUpdateAndRender -EXPORT:GameGetSoundSamples
+del lock.tmp
 cl %CommonCompilerFlags% W:\code\win32_voidt.cpp /link %CommonLinkerFlags%
 
 popd
