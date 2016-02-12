@@ -24,8 +24,8 @@ internal tile_map_position CorrectTileMapPosition(tile_map *tileMap, tile_map_po
 {    
     tile_map_position result = pos;
     
-    CorrectTileMapCoord(tileMap, &result.AbsTileX, &result.OffsetX);
-    CorrectTileMapCoord(tileMap, &result.AbsTileY, &result.OffsetY);
+    CorrectTileMapCoord(tileMap, &result.AbsTileX, &result.Offset.X);
+    CorrectTileMapCoord(tileMap, &result.AbsTileY, &result.Offset.Y);
     
     return result;
 }
@@ -153,8 +153,8 @@ tile_map_difference Subtract(tile_map *tileMap, tile_map_position *a, tile_map_p
     real32 dTileY = (real32)a->AbsTileY - (real32)b->AbsTileY;
     real32 dTileZ = (real32)a->AbsTileZ - (real32)b->AbsTileZ;
     
-    result.dX = tileMap->TileSideInMeters*dTileX + (a->OffsetX - b->OffsetX);
-    result.dY = tileMap->TileSideInMeters*dTileY + (a->OffsetY - b->OffsetY);
+    result.dX = tileMap->TileSideInMeters*dTileX + (a->Offset.X - b->Offset.X);
+    result.dY = tileMap->TileSideInMeters*dTileY + (a->Offset.Y - b->Offset.Y);
     result.dZ = tileMap->TileSideInMeters*dTileZ;
     
     return result;
