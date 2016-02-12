@@ -68,10 +68,12 @@ struct win32_state
 // ----------------------------------------------------------------------------
 //      GLOBALS
 // ----------------------------------------------------------------------------
-global_variable bool GlobalRunning;
+global_variable bool32 GlobalRunning;
 global_variable win32_offscreen_buffer GlobalBackBuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global_variable LARGE_INTEGER GlobalPerfCountFrequency;
+global_variable bool32 DEBUGGlobalShowCursor;
+global_variable WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
 
 
 // ----------------------------------------------------------------------------

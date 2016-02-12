@@ -297,6 +297,31 @@ internal win32_window_dimension Win32GetWindowDimension(HWND Window)
     return result;
 }
 
+internal void ToggleFullScreen(HWND window)
+{
+    DWORD style = GetWindowLong(window, GWL_STYLE);
+    if(style & WS_OVERLAPPEDWINDOW)
+    {
+        MONITORINFO monitorInfo = { sizeof(monitorInfo) };
+        if(GetWindowPlacement(window, &GlobalWindowPosition) && GetMonitorInfo(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &monitorInfo))
+        {
+            SetWindowLong(window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(window, HWND_TOP, 
+                         monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top,
+                         monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+                         monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+            
+        }        
+    }
+    else
+    {
+        SetWindowLong(window, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(window, &GlobalWindowPosition);
+        SetWindowPos(window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+}
+
 internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int width, int height)
 {
     // free previous memory if we're going to resize
@@ -325,21 +350,33 @@ internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int width, i
 
 internal void Win32DisplayBufferInWindow(HDC device, win32_offscreen_buffer *Buffer, int32 WindowWidth, int32 WindowHeight)
 {    
-    // PatBlt(device, 0, 0, WindowWidth, WindowHeight, BLACKNESS);
-    
-    int offsetX = 10;
-    int offsetY = 10;
+    // PatBlt(device, 0, 0, WindowWidth, WindowHeight, BLACKNESS);    
+    if(WindowWidth >= Buffer->Width*2 && WindowHeight >= Buffer->Height*2)
+    {
+         StretchDIBits(device, 
+            0, 0, WindowWidth, WindowHeight,
+            0, 0, Buffer->Width, Buffer->Height,
+            Buffer->Memory, 
+            &Buffer->Info,
+            DIB_RGB_COLORS, 
+            SRCCOPY
+        );       
+    }
+    else
+    {        
+        int offsetX = 10;
+        int offsetY = 10;
 
-	// copies from one rectangle to the other, possibly stretching
-	StretchDIBits(device, 
-        offsetX, offsetY, Buffer->Width, Buffer->Height,
-        0, 0, Buffer->Width, Buffer->Height,
-		Buffer->Memory, 
-		&Buffer->Info,
-        DIB_RGB_COLORS, 
-        SRCCOPY
-    );
-            
+        // copies from one rectangle to the other, possibly stretching
+        StretchDIBits(device, 
+            offsetX, offsetY, Buffer->Width, Buffer->Height,
+            0, 0, Buffer->Width, Buffer->Height,
+            Buffer->Memory, 
+            &Buffer->Info,
+            DIB_RGB_COLORS, 
+            SRCCOPY
+        );
+    }  
     
 }
 
@@ -353,15 +390,25 @@ LRESULT Win32MainWindowCallBack(
 	
 	switch(msg)
 	{
-		case WM_SIZE:
-		{
+		// case WM_SIZE:
+		// {
             // win32_window_dimension Dimension = Win32GetWindowDimension(Window);
 			// Win32ResizeDIBSection(&GlobalBackBuffer, Dimension.Width, Dimension.Height);
-		} break;
+		// } break;
 		case WM_CLOSE:
 		{
 			GlobalRunning = false;
 		} break;
+        case WM_SETCURSOR:
+        {
+            if(DEBUGGlobalShowCursor)
+            {
+                result = DefWindowProc(Window, msg, WParam, LParam);
+            }
+            else
+                SetCursor(0);
+            break;
+        }
 		case WM_ACTIVATEAPP:
 		{
             if(WParam == TRUE)
@@ -706,6 +753,10 @@ internal void Win32ProcessPendingMessages(win32_state *win32State, game_controll
                 {
                     GlobalRunning = false;
                 }       
+                if(VKCode == VK_RETURN && AltKeyWasDown && IsDown)
+                {
+                    ToggleFullScreen(Message.hwnd);
+                }
             } break;                              
             default:
             {
@@ -736,6 +787,10 @@ int CALLBACK WinMain(
 	// MessageBox(0, "Sup G", "Joey", MB_OK | MB_ICONINFORMATION);	
     Win32LoadXInput();
     
+#if INTERNAL
+    DEBUGGlobalShowCursor = true;
+#endif
+    
 	WNDCLASS WindowClass = {};
     
     Win32ResizeDIBSection(&GlobalBackBuffer, 960, 540);
@@ -744,6 +799,7 @@ int CALLBACK WinMain(
 	WindowClass.lpfnWndProc = Win32MainWindowCallBack;
 	WindowClass.hInstance = instance;
 	WindowClass.lpszClassName = "JoeyWindowClass";
+    WindowClass.hCursor = LoadCursor(0, IDC_CROSS);
 		
 	// LARGE_INTEGER perfCountFrequency;
     QueryPerformanceFrequency(&GlobalPerfCountFrequency);

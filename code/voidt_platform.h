@@ -1,6 +1,6 @@
 #ifndef VOIDT_PLATFORM_H
 #define VOIDT_PLATFORM_H
-#include <stdint.h> // defines precise compiler-independent sizes of primitive types
+
 
 
 
