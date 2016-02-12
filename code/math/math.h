@@ -12,22 +12,14 @@
 #ifndef MATH_H
 #define MATH_H
 
-struct vector2D
+union vector2D
 {
-    union
-    {
-        struct 
-        { 
-            real32 X;
-            real32 Y; 
-        };
-        real32 E[2];
+    struct 
+    { 
+        real32 X;
+        real32 Y; 
     };
-    
-    inline vector2D& operator*=(vector2D value);
-    inline vector2D& operator+=(vector2D value);
-    inline vector2D& operator*=(real32 value);
-    inline vector2D& operator+=(real32 value);
+    real32 E[2];
 };
 
 
@@ -77,26 +69,26 @@ inline vector2D operator-(vector2D a)
 }
 
 // *=
-inline vector2D& vector2D::operator*=(real32 value)
+inline vector2D& operator*=(vector2D &a, real32 value)
 {
-    *this = *this * value;
-    return *this;
+    a = a * value;
+    return a;
 }
-inline vector2D& vector2D::operator*=(vector2D value)
+inline vector2D& operator*=(vector2D &a, vector2D value)
 {
-    *this = *this * value;
-    return *this;
+    a = a * value;
+    return a;
 }
 // +=
-inline vector2D& vector2D::operator+=(real32 value)
+inline vector2D& operator+=(vector2D &a, real32 value)
 {
-    *this = *this + value;
-    return *this;
+    a = a + value;
+    return a;
 }
-inline vector2D& vector2D::operator+=(vector2D value)
+inline vector2D& operator+=(vector2D &a, vector2D value)
 {
-    *this = *this + value;
-    return *this;
+    a = a + value;
+    return a;
 }
 
 
