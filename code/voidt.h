@@ -82,8 +82,10 @@ struct game_state
 {
     memory_arena WorldArena;
     game_world *World;
-    tile_map_position PlayerPos;
+    
     tile_map_position CameraPos;
+    tile_map_position PlayerPos;
+    vector2D PlayerVelocity;
     
     
     loaded_bitmap BackDrop;

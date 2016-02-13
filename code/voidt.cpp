@@ -463,36 +463,45 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // else
         // {
             // digital movement tuning
-            vector2D dPlayer = {};
+            vector2D dAcceleration = {};
             
             if(controller->MoveUp.EndedDown)
             {
                 gameState->HeroFacingDirection = 1;
-                dPlayer.Y =  1.0f;
+                dAcceleration.Y =  1.0f;
             }
             if(controller->MoveDown.EndedDown)
             {
                 gameState->HeroFacingDirection = 3;
-                dPlayer.Y = -1.0f;
+                dAcceleration.Y = -1.0f;
             }
             if(controller->MoveLeft.EndedDown)
             {
                 gameState->HeroFacingDirection = 2;
-                dPlayer.X = -1.0f;
+                dAcceleration.X = -1.0f;
             }
             if(controller->MoveRight.EndedDown)
             {
                 gameState->HeroFacingDirection = 0;
-                dPlayer.X =  1.0f;
+                dAcceleration.X =  1.0f;
             }
             real32 speed = 10.0f;
             if(input->Controllers[1].ActionDown.EndedDown)
-                speed = 10.0f;
-            dPlayer *= speed;
+                speed = 25.0f;
+            dAcceleration *= speed;
             
+            // add friction (approximation) to acceleration
+            dAcceleration += -1.5f*gameState->PlayerVelocity;
+            
+            // update player position (use velocity at begin of frame)
             tile_map_position newPlayerPos = gameState->PlayerPos;
-            newPlayerPos.Offset += input->dtPerFrame * dPlayer;
+            newPlayerPos.Offset = 0.5f * dAcceleration*Square(input->dtPerFrame)+
+                                  gameState->PlayerVelocity*input->dtPerFrame + 
+                                  newPlayerPos.Offset;
             newPlayerPos = CorrectTileMapPosition(tileMap, newPlayerPos);
+            
+            // update velocity (add acceleration to velocity as final velocity end of frame)
+            gameState->PlayerVelocity += dAcceleration * input->dtPerFrame;
             
             tile_map_position playerTop = newPlayerPos;
             playerTop.Offset.Y += 0.25;
@@ -576,9 +585,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     screenCenter.X - MetersToPixels*gameState->CameraPos.Offset.X + ((real32)relCol * TileSideInPixels),
                     screenCenter.Y + MetersToPixels*gameState->CameraPos.Offset.Y - ((real32)relRow * TileSideInPixels)
                 };
-                vector2D min = center - 0.5f*TileSideInPixels;
-                vector2D max = center + 0.5f*TileSideInPixels;
-                DrawRectangle(screenBuffer, min, max, 0.3f, gray, gray);
+                vector2D halfWidths = { 0.5f*TileSideInPixels, 0.5f*TileSideInPixels };
+                vector2D min = center - halfWidths;
+                vector2D max = center + halfWidths;
+                DrawRectangle(screenBuffer, min, max, 0.75f, gray, 0.75f);
             }
             
         }        

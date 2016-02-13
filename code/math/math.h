@@ -12,6 +12,19 @@
 #ifndef MATH_H
 #define MATH_H
 
+
+// ----------------------------------------------------------------------------
+//      ARITHMETIC
+// ----------------------------------------------------------------------------
+internal real32 Square(real32 a)
+{
+    return a * a;
+}
+
+
+// ----------------------------------------------------------------------------
+//      VECTOR 2D
+// ----------------------------------------------------------------------------
 union vector2D
 {
     struct 
@@ -42,24 +55,28 @@ inline vector2D operator+(vector2D a, vector2D b)
 {
     return { a.X + b.X, a.Y + b.Y };
 }
-inline vector2D operator+(vector2D a, real32 b)
-{
-    return { a.X + b, a.Y + b }; 
-}
-inline vector2D operator+(real32 b, vector2D a)
-{
-    return a + b;
-}
+// NOTE(Joey): scaler vector addition and subtraction isn't really defined, so best to enforce
+// proper vector operations by disabling these 'convenience' operators. Instead of adding a 
+// scaler, simply add a vector of the proper dimension of that scaler and use that vector to
+// add or subtract.
+// inline vector2D operator+(vector2D a, real32 b)
+// {
+    // return { a.X + b, a.Y + b }; 
+// }
+// inline vector2D operator+(real32 b, vector2D a)
+// {
+    // return a + b;
+// }
 
 // -
 inline vector2D operator-(vector2D a, vector2D b)
 {
     return { a.X - b.X, a.Y - b.Y };
 }
-inline vector2D operator-(vector2D a, real32 b)
-{
-    return { a.X - b, a.Y - b }; 
-}
+// inline vector2D operator-(vector2D a, real32 b)
+// {
+    // return { a.X - b, a.Y - b }; 
+// }
 
 
 // -negate
@@ -80,11 +97,11 @@ inline vector2D& operator*=(vector2D &a, vector2D value)
     return a;
 }
 // +=
-inline vector2D& operator+=(vector2D &a, real32 value)
-{
-    a = a + value;
-    return a;
-}
+// inline vector2D& operator+=(vector2D &a, real32 value)
+// {
+    // a = a + value;
+    // return a;
+// }
 inline vector2D& operator+=(vector2D &a, vector2D value)
 {
     a = a + value;
@@ -93,6 +110,9 @@ inline vector2D& operator+=(vector2D &a, vector2D value)
 
 
 
+
+// globals
+// static const vector2D 2D_UP = vector2D{0.0f, 1.0f};
 
 
 
