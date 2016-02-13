@@ -515,9 +515,42 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             playerRight.Offset.X += 0.5f*playerWidth;
             playerRight = CorrectTileMapPosition(tileMap, playerRight);
             
-            if(IsTileMapPointEmpty(tileMap, playerTop) &&
-               IsTileMapPointEmpty(tileMap, playerLeft) &&
-               IsTileMapPointEmpty(tileMap, playerRight))
+            
+            bool32 collided = false;
+            tile_map_position colPos = {};
+            if(!IsTileMapPointEmpty(tileMap, playerTop))
+            {
+                colPos = playerTop;
+                collided = true;
+            }
+            if(!IsTileMapPointEmpty(tileMap, playerLeft))
+            {
+                colPos = playerLeft;
+                collided = true;
+            }
+            if(!IsTileMapPointEmpty(tileMap, playerRight))
+            {
+                colPos = playerRight;
+                collided = true;
+            }
+            
+            if(collided)
+            {
+               vector2D reflection = { 0.0f, 0.0f };
+                
+                if(colPos.AbsTileX < gameState->PlayerPos.AbsTileX)
+                    reflection = vector2D {  1.0f, 0.0f };
+                if(colPos.AbsTileX > gameState->PlayerPos.AbsTileX)
+                    reflection = vector2D { -1.0f, 0.0f };
+                if(colPos.AbsTileY < gameState->PlayerPos.AbsTileY)  
+                    reflection = vector2D { 0.0f, 1.0f }; 
+                if(colPos.AbsTileY > gameState->PlayerPos.AbsTileY)
+                    reflection = vector2D { 0.0, -1.0f };
+
+                
+                gameState->PlayerVelocity = gameState->PlayerVelocity - 2*InnerProduct(gameState->PlayerVelocity, reflection)*reflection;
+            }
+            else
             {
                 if(!AreOnSameTile(&newPlayerPos, &gameState->PlayerPos))
                 {
@@ -526,9 +559,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         ++newPlayerPos.AbsTileZ;
                     if(tileValue == 4)
                         --newPlayerPos.AbsTileZ;
-                }
-                
-                gameState->PlayerPos = newPlayerPos;
+                }                
+                gameState->PlayerPos = newPlayerPos;                             
             }
             gameState->CameraPos.AbsTileZ = gameState->PlayerPos.AbsTileZ;
             

@@ -117,6 +117,10 @@ inline vector2D& operator+=(vector2D &a, vector2D value)
 
 
 
+inline real32 InnerProduct(vector2D a, vector2D b)
+{
+    return a.X * b.X + a.Y * b.Y;
+}
 
 
 
