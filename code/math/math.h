@@ -121,7 +121,10 @@ inline real32 InnerProduct(vector2D a, vector2D b)
 {
     return a.X * b.X + a.Y * b.Y;
 }
-
+inline real32 LengthSq(vector2D a)
+{
+    return InnerProduct(a, a);
+}
 
 
 

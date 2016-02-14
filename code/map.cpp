@@ -105,10 +105,15 @@ inline uint32 GetTileValue(tile_map *tileMap, tile_map_position pos)
     return GetTileValue(tileMap, pos.AbsTileX, pos.AbsTileY, pos.AbsTileZ);
 }
 
+inline bool32 IsTileValueEmpty(uint32 tileValue)
+{
+    return tileValue == 1 || tileValue == 3 || tileValue == 4;
+}
+
 internal bool32 IsTileMapPointEmpty(tile_map *tileMap, tile_map_position pos)
 {
     uint32 tileChunkValue = GetTileValue(tileMap, pos.AbsTileX, pos.AbsTileY, pos.AbsTileZ);
-    bool32 empty = tileChunkValue == 1 || tileChunkValue == 3 || tileChunkValue == 4;
+    bool32 empty = IsTileValueEmpty(tileChunkValue);
     return empty;
 }
 

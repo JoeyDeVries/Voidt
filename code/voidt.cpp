@@ -452,7 +452,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     tile_map *tileMap = gameState->World->TileMap;
     
-    
+    tile_map_position oldPlayerPos = gameState->PlayerPos;
     for(int controllerIndex = 0; controllerIndex < ArrayCount(input->Controllers); ++controllerIndex)
     {
         game_controller_input *controller = GetController(input, controllerIndex);
@@ -495,9 +495,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             
             // update player position (use velocity at begin of frame)
             tile_map_position newPlayerPos = gameState->PlayerPos;
-            newPlayerPos.Offset = 0.5f * dAcceleration*Square(input->dtPerFrame)+
-                                  gameState->PlayerVelocity*input->dtPerFrame + 
-                                  newPlayerPos.Offset;
+            vector2D playerDelta = 0.5f * dAcceleration*Square(input->dtPerFrame) + gameState->PlayerVelocity*input->dtPerFrame;
+            newPlayerPos.Offset += playerDelta;
             newPlayerPos = CorrectTileMapPosition(tileMap, newPlayerPos);
             
             // update velocity (add acceleration to velocity as final velocity end of frame)
@@ -551,18 +550,62 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 gameState->PlayerVelocity = gameState->PlayerVelocity - 2*InnerProduct(gameState->PlayerVelocity, reflection)*reflection;
             }
             else
-            {
-                if(!AreOnSameTile(&newPlayerPos, &gameState->PlayerPos))
-                {
-                    uint32 tileValue = GetTileValue(tileMap, newPlayerPos);
-                    if(tileValue == 3)
-                        ++newPlayerPos.AbsTileZ;
-                    if(tileValue == 4)
-                        --newPlayerPos.AbsTileZ;
-                }                
+            {          
                 gameState->PlayerPos = newPlayerPos;                             
             }
             gameState->CameraPos.AbsTileZ = gameState->PlayerPos.AbsTileZ;
+                        
+            //
+            // new collision code
+            //
+            // uint32 minTileX = 0;
+            // uint32 minTileY = 0;
+            // uint32 onePastMaxTileX = 0;
+            // uint32 onePastMaxTileY = 0;
+            // uint32 absTileZ = gameState->PlayerPos.AbsTileZ;
+            // tile_map_position bestPlayerPos = gameState->PlayerPos;
+            // real32 bestDistanceSq = LengthSq(playerDelta);
+            
+            // for(uint32 absTileY = minTileY; absTileY != onePastMaxTileY; ++absTileY)
+            // {
+                // for(uint32 absTileX = minTileX; absTileX != onePastMaxTileX; ++absTileX)
+                // {
+                    // tile_map_position testTilePos = CenteredTilePoint(absTileX, absTileY, absTileZ);
+                    // uint32 tileValue = GetTileValue(tileMap, testTilePos);
+                    
+                    // if(IsTileValueEmpty(tileValue))
+                    // {
+                        // vector2D minCorner = -0.5f * vector2D { tileMap->TileSideInMeters, tileMap->TileSideInMeters };
+                        // vector2D maxCorner =  0.5f * vector2D { tileMap->TileSideInMeters, tileMap->TileSideInMeters };
+                        
+                        // tile_map_difference relNewPlayerPos = Subtract(tileMap, &testTilePos, &newPlayerPos);
+                        // vector2D testPos = ClosestPointInRectangle(minCorner, maxCorner, relNewPlayerPos);
+                        
+                        // real32 testDistanceSq = ;
+                        // if(bestDistanceSq > testDistanceSq)
+                        // {
+                            // bestPlayerPos = ;
+                            // bestDistanceSq = ;
+                        // }
+                        
+                    // }
+                // }
+            // }
+                        
+                        
+                        
+                        
+                        
+                        
+            if(!AreOnSameTile(&newPlayerPos, &gameState->PlayerPos))
+            {
+                uint32 tileValue = GetTileValue(tileMap, newPlayerPos);
+                if(tileValue == 3)
+                    ++newPlayerPos.AbsTileZ;
+                if(tileValue == 4)
+                    --newPlayerPos.AbsTileZ;
+            }     
+            
             
             tile_map_difference diff = Subtract(gameState->World->TileMap, &gameState->PlayerPos, &gameState->CameraPos);
             if(diff.dX > 9.0f*tileMap->TileSideInMeters)
