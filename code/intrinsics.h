@@ -19,6 +19,17 @@ inline real32 Absolute(real32 value)
     return (real32)fabs(value);
 }
 
+inline uint32 RotateLeft(uint32 value, uint32 amount)
+{
+    return _rotl(value, amount);
+}
+
+inline uint32 RotateRight(uint32 value, uint32 amount)
+{
+    return _rotr(value, amount);
+}
+
+
 inline int32 RoundReal32ToInt32(real32 value)
 {
     return (int32)roundf(value);

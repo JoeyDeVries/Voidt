@@ -244,16 +244,28 @@ internal loaded_bitmap DEBUGLoadBMP(thread_context *thread, debug_platform_read_
         found = FindLeastSignificantSetBit(&alphaShift, alphaMask);
         Assert(found);
         
+        redShift = 16 - (int32)redShift;
+        greenShift = 8 - (int32)greenShift;
+        blueShift = 0 - (int32)blueShift;
+        alphaShift = 24 - (int32)alphaShift;
+        
         uint32 *sourceDest = pixels;
         for(int32 y = 0; y < result.Height; ++y)
         {
             for(int x = 0; x < result.Width; ++x)
             {
                 uint32 C = *sourceDest;
+#if 0                
                 *sourceDest++ = (((C >> alphaShift) & 0xFF) << 24) | 
                                 (((C >> redShift  ) & 0xFF) << 16) | 
                                 (((C >> greenShift) & 0xFF) << 8)  | 
                                 (((C >> blueShift ) & 0xFF) << 0); 
+#else
+                *sourceDest++ = (RotateLeft(C & redMask, redShift) |
+                                 RotateLeft(C & greenMask, greenShift) |
+                                 RotateLeft(C & blueMask, blueShift) |
+                                 RotateLeft(C & alphaMask, alphaShift));
+#endif
             }            
         }
     }
