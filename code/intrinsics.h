@@ -13,6 +13,12 @@
 #define VOIDT_INTRINSICS_H
 #include "math.h"
 
+
+inline real32 Absolute(real32 value)
+{
+    return (real32)fabs(value);
+}
+
 inline int32 RoundReal32ToInt32(real32 value)
 {
     return (int32)roundf(value);

@@ -728,11 +728,11 @@ internal void Win32ProcessPendingMessages(win32_state *win32State, game_controll
                     }
                     else if (VKCode == VK_ESCAPE)
                     {
-                        Win32ProcessKeyboardMessage(&keyboardController->Start, IsDown);
+                        Win32ProcessKeyboardMessage(&keyboardController->Back, IsDown);
                     }
                     else if (VKCode == VK_SPACE)
                     {
-                        Win32ProcessKeyboardMessage(&keyboardController->Back, IsDown);
+                        Win32ProcessKeyboardMessage(&keyboardController->Start, IsDown);
                     }             
                     else if (VKCode == 'L')
                     {
@@ -993,10 +993,10 @@ int CALLBACK WinMain(
                             if(newController->StickAverageX != 0.0f || newController->StickAverageY != 0.0f)
                                 newController->IsAnalog = true;
                             // - override stick values if d-pad button(s) are pressed
-                            if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP)    { newController->StickAverageY =  1.0f; newController->IsAnalog = true; }
-                            if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN)  { newController->StickAverageY = -1.0f; newController->IsAnalog = true; }
-                            if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT)  { newController->StickAverageX = -1.0f; newController->IsAnalog = true; }
-                            if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) { newController->StickAverageX =  1.0f; newController->IsAnalog = true; }                            
+                            if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP)    { newController->StickAverageY =  1.0f; newController->IsAnalog = false; }
+                            if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN)  { newController->StickAverageY = -1.0f; newController->IsAnalog = false; }
+                            if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT)  { newController->StickAverageX = -1.0f; newController->IsAnalog = false; }
+                            if(Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT) { newController->StickAverageX =  1.0f; newController->IsAnalog = false; }                            
                             // - then process stick values as buttons
                             real32 threshold = 0.5f;
                             Win32ProcessXInputDigitalButton(newController->StickAverageX < -threshold, &oldController->MoveLeft, 1, &newController->MoveLeft);
