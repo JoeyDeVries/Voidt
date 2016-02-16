@@ -16,8 +16,8 @@ internal void CorrectTileMapCoord(tile_map *tileMap, uint32 *tile, real32 *tileR
     *tile    += tileOverflow;
     *tileRel -= tileOverflow*tileMap->TileSideInMeters;
     
-    Assert(*tileRel >= -0.5f*tileMap->TileSideInMeters);
-    Assert(*tileRel <=  0.5f*tileMap->TileSideInMeters);   
+    Assert(*tileRel >= -0.5001f*tileMap->TileSideInMeters);
+    Assert(*tileRel <=  0.5001f*tileMap->TileSideInMeters);   
 }
 
 internal tile_map_position CorrectTileMapPosition(tile_map *tileMap, tile_map_position pos)
@@ -163,4 +163,16 @@ tile_map_difference Subtract(tile_map *tileMap, tile_map_position *a, tile_map_p
     result.dZ = tileMap->TileSideInMeters*dTileZ;
     
     return result;
+}
+
+inline tile_map_position
+CenteredTilePoint(uint32 absTileX, uint32 absTileY, uint32 absTileZ)
+{
+    tile_map_position Result = {};
+
+    Result.AbsTileX = absTileX;
+    Result.AbsTileY = absTileY;
+    Result.AbsTileZ = absTileZ;
+
+    return(Result);
 }

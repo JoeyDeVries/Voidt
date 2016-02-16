@@ -314,11 +314,34 @@ internal void InitializePlayer(game_state *state, uint32 entityIndex)
     }    
 }
 
+internal void TestWall(real32 wallX, real32 relX, real32 relY, real32 playerDeltaX, real32 playerDeltaY, real32 *tMin, real32 minY, real32 maxY)
+{
+    real32 tEpsilon = 0.0001f;
+    if(playerDeltaX != 0.0f)
+    {
+        real32 tResult = (wallX - relX) / playerDeltaX;
+        real32 y = relY + tResult*playerDeltaY;
+        if(tResult >= 0.0f && *tMin > tResult)
+        {
+            if(y >= minY && y <= maxY)
+            {
+                *tMin = Maximum(0.0f, tResult - tEpsilon);
+            }
+        }        
+    }    
+}    
+
 
 
 internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D acceleration)
 {
     tile_map *tileMap = state->World->TileMap;
+    
+    real32 accelerationLength = LengthSq(acceleration); // get squared length, still valid to check length > 1.0 and much cheaper (no sqrt)
+    if(accelerationLength > 1.0f)
+    {
+        acceleration *= 1.0f / SquareRoot(accelerationLength);
+    }
     
     real32 speed = 50.0f;
     acceleration *= speed;
@@ -333,10 +356,10 @@ internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D 
     newPlayerPos.Offset += playerDelta;
     newPlayerPos = CorrectTileMapPosition(tileMap, newPlayerPos);
             
-    // update velocity (add acceleration to velocity as final velocity end of frame)
     player->Velocity += acceleration * dt;
             
     // detect collisions
+#if 0
     tile_map_position playerTop = newPlayerPos;
     playerTop.Offset.Y += 0.25;
     playerTop = CorrectTileMapPosition(tileMap, playerTop);
@@ -386,6 +409,47 @@ internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D 
     {          
         player->Position = newPlayerPos;                             
     }           
+#else   
+    // new collision code
+    
+    uint32 minTileX = Minimum(oldPlayerPos.AbsTileX, newPlayerPos.AbsTileX);
+    uint32 minTileY = Minimum(oldPlayerPos.AbsTileY, newPlayerPos.AbsTileY);
+    uint32 onePastMaxTileX = Maximum(oldPlayerPos.AbsTileX, newPlayerPos.AbsTileX) + 1;
+    uint32 onePastMaxTileY = Maximum(oldPlayerPos.AbsTileY, newPlayerPos.AbsTileY) + 1;
+    
+    uint32 absTileZ = player->Position.AbsTileZ;
+    real32 tMin = 1.0f;
+    
+    for(uint32 absTileY = minTileY; absTileY != onePastMaxTileY; ++absTileY)
+    {
+        for(uint32 absTileX = minTileX; absTileX != onePastMaxTileX; ++absTileX)
+        {
+            tile_map_position testTilePos = CenteredTilePoint(absTileX, absTileY, absTileZ);
+            uint32 tileValue = GetTileValue(tileMap, testTilePos);
+            
+            if(!IsTileValueEmpty(tileValue))
+            {
+                vector2D minCorner = -0.5f * vector2D { tileMap->TileSideInMeters, tileMap->TileSideInMeters };
+                vector2D maxCorner =  0.5f * vector2D { tileMap->TileSideInMeters, tileMap->TileSideInMeters };
+                
+                tile_map_difference relOldPlayerPos = Subtract(tileMap, &oldPlayerPos, &testTilePos);                
+                vector2D rel = vector2D { relOldPlayerPos.dX, relOldPlayerPos.dY };
+                
+                TestWall(minCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y, &tMin, minCorner.Y, maxCorner.Y);
+                TestWall(maxCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y, &tMin, minCorner.Y, maxCorner.Y);
+                TestWall(minCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X, &tMin, minCorner.X, maxCorner.X);
+                TestWall(maxCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X, &tMin, minCorner.X, maxCorner.X);                
+            }
+        }
+    }
+    
+    // update velocity (add acceleration to velocity as final velocity end of frame)
+    newPlayerPos = oldPlayerPos;
+    newPlayerPos.Offset += tMin*playerDelta;
+    player->Position = newPlayerPos;
+    player->Position = CorrectTileMapPosition(tileMap, player->Position);
+#endif
+    
                     
     if(!AreOnSameTile(&oldPlayerPos, &player->Position))
     {
@@ -661,43 +725,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }   
     
                         
-            //
-            // new collision code
-            //
-            // uint32 minTileX = 0;
-            // uint32 minTileY = 0;
-            // uint32 onePastMaxTileX = 0;
-            // uint32 onePastMaxTileY = 0;
-            // uint32 absTileZ = gameState->PlayerPos.AbsTileZ;
-            // tile_map_position bestPlayerPos = gameState->PlayerPos;
-            // real32 bestDistanceSq = LengthSq(playerDelta);
-            
-            // for(uint32 absTileY = minTileY; absTileY != onePastMaxTileY; ++absTileY)
-            // {
-                // for(uint32 absTileX = minTileX; absTileX != onePastMaxTileX; ++absTileX)
-                // {
-                    // tile_map_position testTilePos = CenteredTilePoint(absTileX, absTileY, absTileZ);
-                    // uint32 tileValue = GetTileValue(tileMap, testTilePos);
-                    
-                    // if(IsTileValueEmpty(tileValue))
-                    // {
-                        // vector2D minCorner = -0.5f * vector2D { tileMap->TileSideInMeters, tileMap->TileSideInMeters };
-                        // vector2D maxCorner =  0.5f * vector2D { tileMap->TileSideInMeters, tileMap->TileSideInMeters };
-                        
-                        // tile_map_difference relNewPlayerPos = Subtract(tileMap, &testTilePos, &newPlayerPos);
-                        // vector2D testPos = ClosestPointInRectangle(minCorner, maxCorner, relNewPlayerPos);
-                        
-                        // real32 testDistanceSq = ;
-                        // if(bestDistanceSq > testDistanceSq)
-                        // {
-                            // bestPlayerPos = ;
-                            // bestDistanceSq = ;
-                        // }
-                        
-                    // }
-                // }
-            // }
-                          
+      
         
     // render to screen memory      
     int32  TileSideInPixels= 60;

@@ -13,6 +13,10 @@
 #define VOIDT_INTRINSICS_H
 #include "math.h"
 
+inline real32 SquareRoot(real32 value)
+{
+    return sqrtf(value);
+}
 
 inline real32 Absolute(real32 value)
 {
