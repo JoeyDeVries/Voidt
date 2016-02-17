@@ -13,6 +13,12 @@
 #define VOIDT_INTRINSICS_H
 #include "math.h"
 
+inline int32 SignOf(int32 value)
+{
+    int32 result = value >= 0 ? 1 : -1;
+    return result;
+}
+
 inline real32 SquareRoot(real32 value)
 {
     return sqrtf(value);

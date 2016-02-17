@@ -176,3 +176,9 @@ CenteredTilePoint(uint32 absTileX, uint32 absTileY, uint32 absTileZ)
 
     return(Result);
 }
+
+inline tile_map_position Offset(tile_map *tileMap, tile_map_position pos, vector2D offset)
+{
+    pos.Offset += offset;
+    return CorrectTileMapPosition(tileMap, pos);
+}

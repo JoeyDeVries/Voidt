@@ -302,8 +302,8 @@ internal void InitializePlayer(game_state *state, uint32 entityIndex)
     player->Position.AbsTileX = 1;
     player->Position.AbsTileY = 3;
     player->Position.AbsTileZ = 0;
-    player->Position.Offset.X = 5.0f;
-    player->Position.Offset.X = 5.0f;
+    player->Position.Offset.X = 0.0f;
+    player->Position.Offset.X = 0.0f;
     
     player->Height = 1.4f;
     player->Width = 0.75f*player->Height;
@@ -353,8 +353,7 @@ internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D 
     tile_map_position oldPlayerPos = player->Position;
     tile_map_position newPlayerPos = player->Position;
     vector2D playerDelta = 0.5f * acceleration*Square(dt) + player->Velocity*dt;
-    newPlayerPos.Offset += playerDelta;
-    newPlayerPos = CorrectTileMapPosition(tileMap, newPlayerPos);
+    newPlayerPos = Offset(tileMap, newPlayerPos, playerDelta);
             
     player->Velocity += acceleration * dt;
             
@@ -412,17 +411,23 @@ internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D 
 #else   
     // new collision code
     
-    uint32 minTileX = Minimum(oldPlayerPos.AbsTileX, newPlayerPos.AbsTileX);
-    uint32 minTileY = Minimum(oldPlayerPos.AbsTileY, newPlayerPos.AbsTileY);
-    uint32 onePastMaxTileX = Maximum(oldPlayerPos.AbsTileX, newPlayerPos.AbsTileX) + 1;
-    uint32 onePastMaxTileY = Maximum(oldPlayerPos.AbsTileY, newPlayerPos.AbsTileY) + 1;
+
+    uint32 startTileX = oldPlayerPos.AbsTileX;
+    uint32 startTileY = oldPlayerPos.AbsTileY;
+    uint32 endTileX = newPlayerPos.AbsTileX;
+    uint32 endTileY = newPlayerPos.AbsTileY;
+    
+    int32 deltaX = SignOf(endTileX - startTileX);
+    int32 deltaY = SignOf(endTileY - startTileY);
     
     uint32 absTileZ = player->Position.AbsTileZ;
     real32 tMin = 1.0f;
     
-    for(uint32 absTileY = minTileY; absTileY != onePastMaxTileY; ++absTileY)
+    uint32 absTileY = startTileY;
+    for(;;)
     {
-        for(uint32 absTileX = minTileX; absTileX != onePastMaxTileX; ++absTileX)
+        uint32 absTileX = startTileX;
+        for(;;)
         {
             tile_map_position testTilePos = CenteredTilePoint(absTileX, absTileY, absTileZ);
             uint32 tileValue = GetTileValue(tileMap, testTilePos);
@@ -440,14 +445,19 @@ internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D 
                 TestWall(minCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X, &tMin, minCorner.X, maxCorner.X);
                 TestWall(maxCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X, &tMin, minCorner.X, maxCorner.X);                
             }
+            if(absTileX == endTileX)
+                break;
+            else
+                absTileX += deltaX;
         }
+        if(absTileY == endTileY)
+            break;
+        else
+            absTileY += deltaY;
     }
     
     // update velocity (add acceleration to velocity as final velocity end of frame)
-    newPlayerPos = oldPlayerPos;
-    newPlayerPos.Offset += tMin*playerDelta;
-    player->Position = newPlayerPos;
-    player->Position = CorrectTileMapPosition(tileMap, player->Position);
+    player->Position = Offset(tileMap, oldPlayerPos, tMin*playerDelta);
 #endif
     
                     
@@ -542,8 +552,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         uint32 tilesPerWidth = 17;
         uint32 tilesPerHeight = 9;
         
-        uint32 screenX = 0;
+        uint32 screenX = 0;        
         uint32 screenY = 0;
+        
         uint32 absTileZ = 0;
         bool doorTop = false;
         bool doorBottom = false;
