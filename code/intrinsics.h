@@ -53,7 +53,12 @@ inline uint32 RoundReal32ToUint32(real32 value)
 
 inline int32 FloorReal32ToInt32(real32 value)
 {
-    return (uint32)floorf(value);
+    return (int32)floorf(value);
+}
+
+inline int32 CeilReal32ToInt32(real32 value)
+{
+    return (int32)ceilf(value);
 }
 
 

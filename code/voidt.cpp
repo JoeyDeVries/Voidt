@@ -305,8 +305,8 @@ internal void InitializePlayer(game_state *state, uint32 entityIndex)
     player->Position.Offset.X = 0.0f;
     player->Position.Offset.X = 0.0f;
     
-    player->Height = 1.4f;
-    player->Width = 0.75f*player->Height;
+    player->Height = 0.5f;
+    player->Width = 0.75f;
     
     if(!GetEntity(state, state->CameraFollowingEntityIndex))
     {
@@ -314,9 +314,9 @@ internal void InitializePlayer(game_state *state, uint32 entityIndex)
     }    
 }
 
-internal void TestWall(real32 wallX, real32 relX, real32 relY, real32 playerDeltaX, real32 playerDeltaY, real32 *tMin, real32 minY, real32 maxY)
+internal bool32 TestWall(real32 wallX, real32 relX, real32 relY, real32 playerDeltaX, real32 playerDeltaY, real32 *tMin, real32 minY, real32 maxY)
 {
-    real32 tEpsilon = 0.0001f;
+    real32 tEpsilon = 0.00001f;
     if(playerDeltaX != 0.0f)
     {
         real32 tResult = (wallX - relX) / playerDeltaX;
@@ -326,9 +326,11 @@ internal void TestWall(real32 wallX, real32 relX, real32 relY, real32 playerDelt
             if(y >= minY && y <= maxY)
             {
                 *tMin = Maximum(0.0f, tResult - tEpsilon);
+                return true;
             }
         }        
     }    
+    return false;
 }    
 
 
@@ -351,11 +353,10 @@ internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D 
             
     // update player position (use velocity at begin of frame)
     tile_map_position oldPlayerPos = player->Position;
-    tile_map_position newPlayerPos = player->Position;
     vector2D playerDelta = 0.5f * acceleration*Square(dt) + player->Velocity*dt;
-    newPlayerPos = Offset(tileMap, newPlayerPos, playerDelta);
-            
+    tile_map_position newPlayerPos = Offset(tileMap, oldPlayerPos, playerDelta);
     player->Velocity += acceleration * dt;
+            
             
     // detect collisions
 #if 0
@@ -394,13 +395,13 @@ internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D 
        vector2D reflection = { 0.0f, 0.0f };
         
         if(colPos.AbsTileX < player->Position.AbsTileX)
-            reflection = vector2D {  1.0f, 0.0f };
+            reflection = {  1.0f, 0.0f };
         if(colPos.AbsTileX > player->Position.AbsTileX)
-            reflection = vector2D { -1.0f, 0.0f };
+            reflection = { -1.0f, 0.0f };
         if(colPos.AbsTileY < player->Position.AbsTileY)  
-            reflection = vector2D { 0.0f, 1.0f }; 
+            reflection = { 0.0f, 1.0f }; 
         if(colPos.AbsTileY > player->Position.AbsTileY)
-            reflection = vector2D { 0.0, -1.0f };
+            reflection = { 0.0, -1.0f };
         
         player->Velocity = player->Velocity - 2*InnerProduct(player->Velocity, reflection)*reflection;
     }
@@ -410,54 +411,94 @@ internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D 
     }           
 #else   
     // new collision code
-    
+    uint32 minTileX = Minimum(oldPlayerPos.AbsTileX, newPlayerPos.AbsTileX);
+    uint32 minTileY = Minimum(oldPlayerPos.AbsTileY, newPlayerPos.AbsTileY);
+    uint32 maxTileX = Maximum(oldPlayerPos.AbsTileX, newPlayerPos.AbsTileX);
+    uint32 maxTileY = Maximum(oldPlayerPos.AbsTileY, newPlayerPos.AbsTileY);
 
-    uint32 startTileX = oldPlayerPos.AbsTileX;
-    uint32 startTileY = oldPlayerPos.AbsTileY;
-    uint32 endTileX = newPlayerPos.AbsTileX;
-    uint32 endTileY = newPlayerPos.AbsTileY;
+    // get width/height of entity in tiles (also base tiles to check on minkowski sum)
+    uint32 entityTileWidth = CeilReal32ToInt32(player->Width / tileMap->TileSideInMeters);
+    uint32 entityTileHeight = CeilReal32ToInt32(player->Height / tileMap->TileSideInMeters);
     
-    int32 deltaX = SignOf(endTileX - startTileX);
-    int32 deltaY = SignOf(endTileY - startTileY);
+    minTileX -= entityTileWidth;
+    minTileY -= entityTileHeight;
+    maxTileX += entityTileWidth;
+    maxTileY += entityTileHeight;
+    Assert(maxTileX - minTileX < 32);
+    Assert(maxTileY - minTileY < 32);
     
     uint32 absTileZ = player->Position.AbsTileZ;
-    real32 tMin = 1.0f;
-    
-    uint32 absTileY = startTileY;
-    for(;;)
+
+    real32 tRemaining = 1.0f;
+    for(uint32 i = 0; i < 4 && tRemaining > 0.0f; ++i)
     {
-        uint32 absTileX = startTileX;
-        for(;;)
+        real32 tMin = 1.0f;
+        vector2D wallNormal = {};        
+        
+        for(uint32 absTileY = minTileY; absTileY <= maxTileY; ++absTileY)
         {
-            tile_map_position testTilePos = CenteredTilePoint(absTileX, absTileY, absTileZ);
-            uint32 tileValue = GetTileValue(tileMap, testTilePos);
-            
-            if(!IsTileValueEmpty(tileValue))
+            for(uint32 absTileX = minTileX; absTileX <= maxTileX; ++absTileX)
             {
-                vector2D minCorner = -0.5f * vector2D { tileMap->TileSideInMeters, tileMap->TileSideInMeters };
-                vector2D maxCorner =  0.5f * vector2D { tileMap->TileSideInMeters, tileMap->TileSideInMeters };
+                tile_map_position testTilePos = CenteredTilePoint(absTileX, absTileY, absTileZ);
+                uint32 tileValue = GetTileValue(tileMap, testTilePos);
                 
-                tile_map_difference relOldPlayerPos = Subtract(tileMap, &oldPlayerPos, &testTilePos);                
-                vector2D rel = vector2D { relOldPlayerPos.dX, relOldPlayerPos.dY };
+                if(!IsTileValueEmpty(tileValue))
+                {
+                    /* NOTE(Joey):
+                       
+                      We're going to use the Minkowski sum for collision detection.
+                      The idea is to reduce the relative complex shapes of objects to check
+                      by adding the shape of one along the exterior of the other to reduce
+                      one of the shapes to a single point. Collision detection then simply
+                      becomes a point-shape algorithm, which is relatively easier to implement.
+                     
+                      At the moment we simply only deal with quads (for more complex shapes we
+                      want to use the GJK algorithm). We solve this by adding entity-quad's 
+                      halfwidths to the shape(s) to test, reducing the player entity to a 
+                      point.
+                    */               
+                    
+                    real32 diameterW = tileMap->TileSideInMeters + player->Width;
+                    real32 diameterH = tileMap->TileSideInMeters + player->Height;
+                    vector2D minCorner = -0.5f*vector2D{diameterW, diameterH};
+                    vector2D maxCorner = 0.5f*vector2D{diameterW, diameterH};
+
+                    tile_map_difference RelOldPlayerP = Subtract(tileMap, &player->Position, &testTilePos);
+                    vector2D rel = { RelOldPlayerP.dX, RelOldPlayerP.dY };
+             
+                    if(TestWall(minCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y,
+                                &tMin, minCorner.Y, maxCorner.Y))
+                    {
+                        wallNormal = {-1, 0};
+                    }
                 
-                TestWall(minCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y, &tMin, minCorner.Y, maxCorner.Y);
-                TestWall(maxCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y, &tMin, minCorner.Y, maxCorner.Y);
-                TestWall(minCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X, &tMin, minCorner.X, maxCorner.X);
-                TestWall(maxCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X, &tMin, minCorner.X, maxCorner.X);                
+                    if(TestWall(maxCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y,
+                                &tMin, minCorner.Y, maxCorner.Y))
+                    {
+                        wallNormal = {1, 0};
+                    }
+                
+                    if(TestWall(minCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X,
+                                &tMin, minCorner.X, maxCorner.X))
+                    {
+                        wallNormal = {0, -1};
+                    }
+                
+                    if(TestWall(maxCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X,
+                                &tMin, minCorner.X, maxCorner.X))
+                    {
+                        wallNormal = {0, 1};
+                    }
+                        
+                }
             }
-            if(absTileX == endTileX)
-                break;
-            else
-                absTileX += deltaX;
-        }
-        if(absTileY == endTileY)
-            break;
-        else
-            absTileY += deltaY;
-    }
+        }    
+        player->Position = Offset(tileMap, player->Position, tMin*playerDelta);        
+        player->Velocity = player->Velocity - 1*InnerProduct(player->Velocity, wallNormal)*wallNormal;
+        playerDelta = playerDelta - 1*InnerProduct(playerDelta, wallNormal)*wallNormal;
+        tRemaining -= tMin*tRemaining;
+    }  
     
-    // update velocity (add acceleration to velocity as final velocity end of frame)
-    player->Position = Offset(tileMap, oldPlayerPos, tMin*playerDelta);
 #endif
     
                     
@@ -488,11 +529,7 @@ internal void MovePlayer(game_state *state, entity *player, real32 dt, vector2D 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     // Assert((&input->Controllers[0].Back - &input->Controllers[0].Buttons[0]) == ArrayCount(input->Controllers[0].Buttons) - 1); // check if button array matches union struct members
-    Assert(sizeof(game_state) <= memory->PermanentStorageSize); 
-    
-    real32 playerWidth = 0.75f*1.4f;
-    real32 playerHeight = 1.4f;
-    
+    Assert(sizeof(game_state) <= memory->PermanentStorageSize);      
     
     game_state *gameState = (game_state*)memory->PermanentStorage;    
     if(!memory->IsInitialized)
@@ -682,7 +719,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             if(controller->IsAnalog)
             {
                 // analog movement tuning
-                dAcceleration = vector2D { controller->StickAverageX, controller->StickAverageY };
+                dAcceleration = { controller->StickAverageX, controller->StickAverageY };
             }
             else
             {
@@ -724,7 +761,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         gameState->CameraPos.AbsTileZ = cameraFollowingEntity->Position.AbsTileZ;
     
-         tile_map_difference diff = Subtract(gameState->World->TileMap, &cameraFollowingEntity->Position, &gameState->CameraPos);
+        tile_map_difference diff = Subtract(gameState->World->TileMap, &cameraFollowingEntity->Position, &gameState->CameraPos);
         if(diff.dX > 9.0f*tileMap->TileSideInMeters)
             gameState->CameraPos.AbsTileX += 17;
         if(diff.dX < -9.0f*tileMap->TileSideInMeters)
@@ -771,8 +808,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 {
                     gray = 0.25f;
                 }
-
-
              
                 vector2D center = { 
                     screenCenter.X - MetersToPixels*gameState->CameraPos.Offset.X + ((real32)relCol * TileSideInPixels),
@@ -796,12 +831,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
             real32 playerGroundPointX = screenCenter.X + MetersToPixels*diff.dX;
             real32 playerGroundPointY = screenCenter.Y - MetersToPixels*diff.dY;
-            real32 playerLeft = playerGroundPointX - 0.5f*MetersToPixels*playerWidth;
-            real32 playerTop = playerGroundPointY - MetersToPixels*playerHeight;
+            real32 playerLeft = playerGroundPointX - 0.5f*MetersToPixels*player->Width;
+            real32 playerTop = playerGroundPointY - 0.5f*MetersToPixels*player->Height;
             real32 playerR = 1.0f;
             real32 playerG = 0.5f;
             real32 playerB = 0.0f;       
-            DrawRectangle(screenBuffer, { playerLeft, playerTop }, { playerLeft + MetersToPixels*playerWidth, playerTop + MetersToPixels*playerHeight }, playerR, playerG, playerB);
+            DrawRectangle(screenBuffer, { playerLeft, playerTop }, { playerLeft + MetersToPixels*player->Width, playerTop + MetersToPixels*player->Height}, playerR, playerG, playerB);
             uint32 facingDirection = player->FacingDirection;
             DrawBitmap(screenBuffer, &gameState->HeroBitmaps[facingDirection].Torso, playerGroundPointX, playerGroundPointY, gameState->HeroBitmaps[facingDirection].AlignX, gameState->HeroBitmaps[facingDirection].AlignY);
             DrawBitmap(screenBuffer, &gameState->HeroBitmaps[facingDirection].Cape, playerGroundPointX, playerGroundPointY, gameState->HeroBitmaps[facingDirection].AlignX, gameState->HeroBitmaps[facingDirection].AlignY);
