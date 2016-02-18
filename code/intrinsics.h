@@ -31,12 +31,24 @@ inline real32 Absolute(real32 value)
 
 inline uint32 RotateLeft(uint32 value, uint32 amount)
 {
+#if COMPILER_MSVC
     return _rotl(value, amount);
+#else
+    // TODO(Joey): port to other compiler platform
+    amount &= 31;
+    return (value << amount) | (value >> (32 - amount);
+#endif
 }
 
 inline uint32 RotateRight(uint32 value, uint32 amount)
 {
+#if COMPILER_MSVC
     return _rotr(value, amount);
+#else
+    // TODO(Joey): port to other compiler platform
+    amount &= 31;
+    return (value >> amount) | (value << (32 - amount)
+#endif
 }
 
 
