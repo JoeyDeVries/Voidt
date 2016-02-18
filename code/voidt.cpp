@@ -52,8 +52,8 @@ internal void DrawBitmap(game_offscreen_buffer *buffer, loaded_bitmap *bitmap, r
     
     int32 minX = RoundReal32ToInt32(X);
     int32 minY = RoundReal32ToInt32(Y);
-    int32 maxX = RoundReal32ToInt32(X + bitmap->Width);
-    int32 maxY = RoundReal32ToInt32(Y + bitmap->Height);
+    int32 maxX = minX + bitmap->Width;
+    int32 maxY = minY + bitmap->Height;
     
     int32 sourceOffsetX = 0; // fixing clipping
     int32 sourceOffsetY = 0;
@@ -333,15 +333,13 @@ internal uint32 AddEntity(game_state *gameState)
 }
 
 
-internal void InitializePlayer(game_state *gameState, uint32 entityIndex)
+internal uint32 AddPlayer(game_state *gameState)
 {
+    uint32 entityIndex = AddEntity(gameState);
     game_entity player = GetEntity(gameState, ENTITY_RESIDENCE_DORMANT, entityIndex);
     
     player.Dormant->Position.AbsTileX = 1;
     player.Dormant->Position.AbsTileY = 3;
-    // player.Dormant.Position.AbsTileZ = 0;
-    player.Dormant->Position.Offset.X = 0.0f;
-    player.Dormant->Position.Offset.X = 0.0f;
     player.Dormant->Collides = true;
     
     player.Dormant->Height = 0.5f;
@@ -353,6 +351,22 @@ internal void InitializePlayer(game_state *gameState, uint32 entityIndex)
     {
         gameState->CameraFollowingEntityIndex = entityIndex;
     }    
+    return entityIndex;
+}
+
+internal uint32 AddWall(game_state *gameState, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
+{
+    uint32 entityIndex = AddEntity(gameState);
+    game_entity player = GetEntity(gameState, ENTITY_RESIDENCE_DORMANT, entityIndex);
+    
+    player.Dormant->Position.AbsTileX = absTileX;
+    player.Dormant->Position.AbsTileY = absTileY;
+    player.Dormant->Position.AbsTileZ = absTileZ;
+    player.Dormant->Height = gameState->World->TileMap->TileSideInMeters;
+    player.Dormant->Width  = gameState->World->TileMap->TileSideInMeters;
+    player.Dormant->Collides = true;
+    
+    return entityIndex;
 }
 
 internal bool32 TestWall(real32 wallX, real32 relX, real32 relY, real32 playerDeltaX, real32 playerDeltaY, real32 *tMin, real32 minY, real32 maxY)
@@ -520,6 +534,45 @@ internal void MovePlayer(game_state *gameState, game_entity player, real32 dt, v
     player.Dormant->Position = MapIntoTileSpace(gameState->World->TileMap, gameState->CameraPos, player.High->Position);
 }
 
+internal void SetCamera(game_state *gameState, tile_map_position newCameraPos)
+{
+    // determine how far camera moved, and update all entities back to proper camera space
+    tile_map *tileMap = gameState->World->TileMap;
+    tile_map_difference dCameraPos = Subtract(tileMap, &newCameraPos, &gameState->CameraPos);
+    gameState->CameraPos = newCameraPos;
+            
+    vector2D entityOffsetPerFrame = {};
+    entityOffsetPerFrame = { -dCameraPos.dX, -dCameraPos.dY };
+    
+    /* NOTE(Joey)
+      
+      If camera position gets updated, loop over all high
+      frequency entities and remove those from the list 
+      that are now out of the high frequency range.
+      
+      Add entities from the low frequency list onto the
+      high frequency list that have now entered the 
+      pre-defined high frequency range.
+    
+      The high frequency range is a screen region of 
+      3x3 surrounding the center camera screen pos.    
+    */
+    rectangle2D CameraBounds = RectCenterDim(vector2D { 0, 0 }, tileMap->TileSideInMeters*vector2D { 17*3, 9*3 });                                                 
+    for(uint32 entityIndex = 1; entityIndex < ArrayCount(gameState->HighEntities); ++entityIndex)
+    {
+        high_entity *high = gameState->HighEntities + entityIndex;
+        
+        high->Position += entityOffsetPerFrame;
+        
+        if(!IsInRectangle(CameraBounds, high->Position))
+        {
+            ChangeEntityResidence(gameState, entityIndex, ENTITY_RESIDENCE_LOW);
+        }        
+    }
+    
+    // TODO(Joey): move entities into high set here
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     // Assert((&input->Controllers[0].Back - &input->Controllers[0].Buttons[0]) == ArrayCount(input->Controllers[0].Buttons) - 1); // check if button array matches union struct members
@@ -594,7 +647,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         bool doorRight = false;
         bool doorUp  = false;
         bool doorDown = false;
-        for(uint32 screenIndex = 0; screenIndex < 100; ++screenIndex)
+        for(uint32 screenIndex = 0; screenIndex < 1; ++screenIndex)
         {
             uint32 randomChoice = 0;
             if(doorUp || doorDown)
@@ -653,8 +706,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                             tileValue = 4;
                         }
                     }                      
-                    
+                                        
                     SetTileValue(&gameState->WorldArena, world->TileMap, absTileX, absTileY, absTileZ, tileValue);
+                    
+                    if(tileValue == 2)
+                        AddWall(gameState, absTileX, absTileY, absTileZ);
+                    // int entityIndex = AddEntity(gameState);
                 }
             }
             
@@ -746,8 +803,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         {
             if(controller->Start.EndedDown)
             {
-                uint32 entityIndex = AddEntity(gameState);
-                InitializePlayer(gameState, entityIndex);
+                uint32 entityIndex = AddPlayer(gameState);
                 gameState->PlayerControllerIndex[controllerIndex] = entityIndex;                
             }
         }
@@ -756,26 +812,24 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // move camera based on whichever entity we follow
     tile_map *tileMap = gameState->World->TileMap;
     
-    vector2D entityOffsetPerFrame = {};
+    // vector2D entityOffsetPerFrame = {};
     game_entity cameraFollowingEntity = GetEntity(gameState, ENTITY_RESIDENCE_HIGH, gameState->CameraFollowingEntityIndex);
     if(cameraFollowingEntity.Residence != ENTITY_RESIDENCE_NONEXISTANT)
     {
-        tile_map_position oldCameraP = gameState->CameraPos;
+        tile_map_position newCameraP = gameState->CameraPos;
         
-        gameState->CameraPos.AbsTileZ = cameraFollowingEntity.Dormant->Position.AbsTileZ;
+        newCameraP.AbsTileZ = cameraFollowingEntity.Dormant->Position.AbsTileZ;
     
         if(cameraFollowingEntity.High->Position.X > 9.0f*tileMap->TileSideInMeters)
-            gameState->CameraPos.AbsTileX += 17;
+            newCameraP.AbsTileX += 17;
         if(cameraFollowingEntity.High->Position.X < -9.0f*tileMap->TileSideInMeters)
-            gameState->CameraPos.AbsTileX -= 17;
+            newCameraP.AbsTileX -= 17;
         if(cameraFollowingEntity.High->Position.Y > 5.0f*tileMap->TileSideInMeters)
-            gameState->CameraPos.AbsTileY += 9;
+            newCameraP.AbsTileY += 9;
         if(cameraFollowingEntity.High->Position.Y < -5.0f*tileMap->TileSideInMeters)
-            gameState->CameraPos.AbsTileY -= 9;
+            newCameraP.AbsTileY -= 9;
         
-        // determine how far camera moved, and update all entities back to proper camera space
-        tile_map_difference dCameraPos = Subtract(tileMap, &gameState->CameraPos, &oldCameraP);
-        entityOffsetPerFrame = { -dCameraPos.dX, -dCameraPos.dY };
+        SetCamera(gameState, newCameraP);
     }   
     
                         
@@ -837,7 +891,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             low_entity *lowEntity = &gameState->LowEntities[entityIndex];            
             dormant_entity *dormantEntity = &gameState->DormantEntities[entityIndex];           
 
-            highEntity->Position += entityOffsetPerFrame;            
+            // highEntity->Position += entityOffsetPerFrame;            
             
             // jump
             real32 dt = input->dtPerFrame;
