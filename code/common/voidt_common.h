@@ -53,6 +53,8 @@ typedef double real64;
 #define Assert(Expression)
 #endif
 
+#define InvalidCodePath Assert(!"InvalidCodePath");
+
 #define Minimum(A, B) ((A < B) ? (A) : (B))
 #define Maximum(A, B) ((A > B) ? (A) : (B))
 
