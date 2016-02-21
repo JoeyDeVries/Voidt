@@ -13,17 +13,17 @@
 #define VOIDT_MAP_H
 
 
-const int32 TILE_CHUNK_SAFE_MARGIN = (INT32_MAX/64);
-const int32 TILE_CHUNK_UNINITIALIZED = INT32_MAX;
+const int32 WORLD_CHUNK_SAFE_MARGIN = (INT32_MAX/64);
+#define WORLD_CHUNK_UNINITIALIZED INT32_MAX
 
-struct tile_map_difference
+struct world_difference
 {
     real32 dX;
     real32 dY;
     real32 dZ;        
 };
 
-struct tile_map_position
+struct world_position
 {
     int32 AbsTileX; // virtual page system (first 28 bits tileMapIndex, last 4 bits tileX)
     int32 AbsTileY;
@@ -32,41 +32,30 @@ struct tile_map_position
     vector2D Offset;
 };
 
-struct tile_chunk_position
+struct world_entity_block
 {
-    int32 TileChunkX;
-    int32 TileChunkY;
-    int32 TileChunkZ;
-    
-    uint32 RelTileX;
-    uint32 RelTileY;    
+    uint32 EntityCount;
+    uint32 LowEntityIndex[16];
+    world_entity_block *Next;
 };
 
-struct tile_chunk
+struct world_chunk
 {    
-    int32 TileChunkX;
-    int32 TileChunkY;
-    int32 TileChunkZ;
+    int32 ChunkX, ChunkY, ChunkZ;
     
-    uint32 *Tiles;
+    world_entity_block FirstBlock;
     
-    tile_chunk *NextInHash;
+    world_chunk *NextInHash;
 };
 
-struct tile_map
+struct game_world
 {
+    real32 TileSideInMeters;
+
     int32 ChunkShift;
     int32 ChunkMask;
     int32 ChunkDim;
-    
-    real32 TileSideInMeters;
-        
-    // number of static tiles per tilemap
-    uint32 TileChunkCountX;
-    uint32 TileChunkCountY;    
-    uint32 TileChunkCountZ;    
-
-    tile_chunk TileChunkHash[4096];
+    world_chunk ChunkHash[4096];
 };
 
 #endif

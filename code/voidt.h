@@ -56,10 +56,10 @@ internal void* PushSize_(memory_arena *arena, memory_index size)
 }
 
 
-struct game_world
-{
-    tile_map *TileMap;   
-};
+// struct game_world
+// {
+    // tile_map *TileMap;   
+// };
 
 struct loaded_bitmap
 {
@@ -102,7 +102,7 @@ struct low_entity
 {
     entity_type Type;
     
-    tile_map_position Position;
+    world_position Position;
     real32 Width;
     real32 Height;
     
@@ -119,13 +119,19 @@ struct game_entity
     low_entity *Low;
 };
 
+// struct low_entity_chunk_reference
+// {
+    // tile_chunk *TileChunk;
+    // uint32 EntityIndexInChunk;
+// };
+
 struct game_state
 {
     memory_arena WorldArena;
     game_world *World;
     
     uint32 CameraFollowingEntityIndex;
-    tile_map_position CameraPos;
+    world_position CameraPos;
     
     uint32 PlayerControllerIndex[ArrayCount(((game_input*)0)->Controllers)];
     

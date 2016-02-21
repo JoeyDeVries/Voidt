@@ -10,84 +10,79 @@
 ** option) any later version.
 *******************************************************************/
 
-internal void CorrectTileMapCoord(tile_map *tileMap, int32 *tile, real32 *tileRel)
+internal void CorrectTileMapCoord(game_world *world, int32 *tile, real32 *tileRel)
 {
-    int32 tileOverflow = RoundReal32ToInt32(*tileRel / tileMap->TileSideInMeters);
+    int32 tileOverflow = RoundReal32ToInt32(*tileRel / world->TileSideInMeters);
     *tile    += tileOverflow;
-    *tileRel -= tileOverflow*tileMap->TileSideInMeters;
+    *tileRel -= tileOverflow*world->TileSideInMeters;
     
-    Assert(*tileRel >= -0.5f*tileMap->TileSideInMeters);
-    Assert(*tileRel <=  0.5f*tileMap->TileSideInMeters);   
+    Assert(*tileRel >= -0.5f*world->TileSideInMeters);
+    Assert(*tileRel <=  0.5f*world->TileSideInMeters);   
 }
 
-internal tile_map_position MapIntoTileSpace(tile_map *tileMap, tile_map_position basePos, vector2D offset)
+internal world_position MapIntoTileSpace(game_world *world, world_position basePos, vector2D offset)
 {    
-    tile_map_position result = basePos;
+    world_position result = basePos;
     
     result.Offset += offset;
-    CorrectTileMapCoord(tileMap, &result.AbsTileX, &result.Offset.X);
-    CorrectTileMapCoord(tileMap, &result.AbsTileY, &result.Offset.Y);
+    CorrectTileMapCoord(world, &result.AbsTileX, &result.Offset.X);
+    CorrectTileMapCoord(world, &result.AbsTileY, &result.Offset.Y);
     
     return result;
 }
 
 
-inline tile_chunk_position GetChunkPosition(tile_map *tileMap, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
-{
-    tile_chunk_position result;
+// inline world_chunk_position GetChunkPosition(game_world *world, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
+// {
+    // world_chunk_position result;
     
-    result.TileChunkX = absTileX >> tileMap->ChunkShift;
-    result.TileChunkY = absTileY >> tileMap->ChunkShift;
-    result.TileChunkZ = absTileZ;
-    result.RelTileX = absTileX & tileMap->ChunkMask;
-    result.RelTileY = absTileY & tileMap->ChunkMask;
+    // result.TileChunkX = absTileX >> world->ChunkShift;
+    // result.TileChunkY = absTileY >> world->ChunkShift;
+    // result.TileChunkZ = absTileZ;
+    // result.RelTileX = absTileX & world->ChunkMask;
+    // result.RelTileY = absTileY & world->ChunkMask;
     
-    return result;
-}
+    // return result;
+// }
 
-inline tile_chunk* GetTileChunk(tile_map* tileMap, int32 tileChunkX, int32 tileChunkY, int32 tileChunkZ, memory_arena *arena = 0)
+inline world_chunk* GetTileChunk(game_world* world, int32 chunkX, int32 chunkY, int32 chunkZ, memory_arena *arena = 0)
 {
-    Assert(tileChunkX > -TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkY > -TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkZ > -TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkX <  TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkY <  TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkZ <  TILE_CHUNK_SAFE_MARGIN);
+    Assert(chunkX > -WORLD_CHUNK_SAFE_MARGIN);
+    Assert(chunkY > -WORLD_CHUNK_SAFE_MARGIN);
+    Assert(chunkZ > -WORLD_CHUNK_SAFE_MARGIN);
+    Assert(chunkX <  WORLD_CHUNK_SAFE_MARGIN);
+    Assert(chunkY <  WORLD_CHUNK_SAFE_MARGIN);
+    Assert(chunkZ <  WORLD_CHUNK_SAFE_MARGIN);
     
     // TODO(Joey): better hash function
-    uint32 hashValue = 19*tileChunkX + 7*tileChunkY + 3*tileChunkZ;
-    uint32 hashSlot = hashValue & (ArrayCount(tileMap->TileChunkHash) - 1); // this works because TileChunkHash is power of 2
-    Assert(hashSlot < ArrayCount(tileMap->TileChunkHash));
+    uint32 hashValue = 19*chunkX + 7*chunkY + 3*chunkZ;
+    uint32 hashSlot = hashValue & (ArrayCount(world->ChunkHash) - 1); // this works because ChunkHash is power of 2
+    Assert(hashSlot < ArrayCount(world->ChunkHash));
     
-    tile_chunk *chunk = tileMap->TileChunkHash;
+    world_chunk *chunk = world->ChunkHash + hashSlot;
     do
     {
-        if(chunk->TileChunkX != tileChunkX &&       
-           chunk->TileChunkY != tileChunkY &&
-           chunk->TileChunkZ != tileChunkZ)
+        if(chunk->ChunkX == chunkX &&       
+           chunk->ChunkY == chunkY &&
+           chunk->ChunkZ == chunkZ)
        {
            break;
        }
        
-       if(arena && chunk->TileChunkX != 0 && !chunk->NextInHash)
+       if(arena && (chunk->ChunkX != WORLD_CHUNK_UNINITIALIZED) && (!chunk->NextInHash))
        {
-            chunk->NextInHash = PushStruct(arena, tile_chunk);
+            chunk->NextInHash = PushStruct(arena, world_chunk);
             chunk = chunk->NextInHash;
-            chunk->TileChunkX = TILE_CHUNK_UNINITIALIZED;
+            chunk->ChunkX = WORLD_CHUNK_UNINITIALIZED;
        }
         
-        if(arena && !chunk->TileChunkX == TILE_CHUNK_UNINITIALIZED)
+        if(arena && (chunk->ChunkX == WORLD_CHUNK_UNINITIALIZED))
         {
-            chunk->TileChunkX = tileChunkX;
-            chunk->TileChunkY = tileChunkY;
-            chunk->TileChunkZ = tileChunkZ;
-    
-            uint32 tileCount = tileMap->ChunkDim*tileMap->ChunkDim;            
-            chunk->Tiles = PushArray(arena, tileCount, uint32);
-            
-            for(uint32 tileIndex = 0; tileIndex < tileCount; ++tileIndex)
-                chunk->Tiles[tileIndex] = 1;    
+            chunk->ChunkX = chunkX;
+            chunk->ChunkY = chunkY;
+            chunk->ChunkZ = chunkZ;
 
+            
             chunk->NextInHash = 0;
             
             break;
@@ -96,77 +91,77 @@ inline tile_chunk* GetTileChunk(tile_map* tileMap, int32 tileChunkX, int32 tileC
     return chunk;
 }
 
-inline uint32 GetTileValueUnchecked(tile_map *tileMap, tile_chunk *chunk, int32 tileX, int32 tileY)
-{
-    Assert(chunk);
-    Assert(tileX < tileMap->ChunkDim);
-    Assert(tileY < tileMap->ChunkDim);
+// inline uint32 GetTileValueUnchecked(tile_map *tileMap, world_chunk *chunk, int32 tileX, int32 tileY)
+// {
+    // Assert(chunk);
+    // Assert(tileX < tileMap->ChunkDim);
+    // Assert(tileY < tileMap->ChunkDim);
     
-    return chunk->Tiles[tileY*tileMap->ChunkDim + tileX];
-}
+    // return chunk->Tiles[tileY*tileMap->ChunkDim + tileX];
+// }
 
-inline void SetTileValueUnchecked(tile_map *tileMap, tile_chunk *chunk, int32 tileX, int32 tileY, uint32 tileValue)
-{
-    Assert(chunk);
-    Assert(tileX < tileMap->ChunkDim);
-    Assert(tileY < tileMap->ChunkDim);
+// inline void SetTileValueUnchecked(tile_map *tileMap, world_chunk *chunk, int32 tileX, int32 tileY, uint32 tileValue)
+// {
+    // Assert(chunk);
+    // Assert(tileX < tileMap->ChunkDim);
+    // Assert(tileY < tileMap->ChunkDim);
     
-    chunk->Tiles[tileY*tileMap->ChunkDim + tileX] = tileValue;
-}
+    // chunk->Tiles[tileY*tileMap->ChunkDim + tileX] = tileValue;
+// }
 
 
-inline uint32 GetTileValue(tile_map *tileMap, tile_chunk *tileChunk, uint32 tileX, uint32 tileY)
-{
-    uint32 tileValue = 0;
-    if(tileChunk && tileChunk->Tiles)
-        tileValue = GetTileValueUnchecked(tileMap, tileChunk, tileX, tileY);
-    return tileValue;
-}
+// inline uint32 GetTileValue(tile_map *tileMap, world_chunk *chunk, uint32 tileX, uint32 tileY)
+// {
+    // uint32 tileValue = 0;
+    // if(chunk && chunk->Tiles)
+        // tileValue = GetTileValueUnchecked(tileMap, chunk, tileX, tileY);
+    // return tileValue;
+// }
 
-inline void SetTileValue(tile_map *tileMap, tile_chunk *tileChunk, uint32 tileX, uint32 tileY, uint32 tileValue)
-{
-    if(tileChunk && tileChunk->Tiles)
-        SetTileValueUnchecked(tileMap, tileChunk, tileX, tileY, tileValue);
-}
+// inline void SetTileValue(tile_map *tileMap, world_chunk *chunk, uint32 tileX, uint32 tileY, uint32 tileValue)
+// {
+    // if(chunk && chunk->Tiles)
+        // SetTileValueUnchecked(tileMap, chunk, tileX, tileY, tileValue);
+// }
 
-inline uint32 GetTileValue(tile_map *tileMap, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
-{  
-    tile_chunk_position chunkPos = GetChunkPosition(tileMap, absTileX, absTileY, absTileZ);
-    tile_chunk *tileChunk = GetTileChunk(tileMap, chunkPos.TileChunkX, chunkPos.TileChunkY, chunkPos.TileChunkZ);
-    uint32 tileChunkValue = GetTileValue(tileMap, tileChunk, chunkPos.RelTileX, chunkPos.RelTileY);
+// inline uint32 GetTileValue(tile_map *tileMap, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
+// {  
+    // world_chunk_position chunkPos = GetChunkPosition(tileMap, absTileX, absTileY, absTileZ);
+    // world_chunk *chunk = GetTileChunk(tileMap, chunkPos.TileChunkX, chunkPos.TileChunkY, chunkPos.TileChunkZ);
+    // uint32 chunkValue = GetTileValue(tileMap, chunk, chunkPos.RelTileX, chunkPos.RelTileY);
     
-    return tileChunkValue;
-}
+    // return chunkValue;
+// }
 
-inline uint32 GetTileValue(tile_map *tileMap, tile_map_position pos)
-{  
-    return GetTileValue(tileMap, pos.AbsTileX, pos.AbsTileY, pos.AbsTileZ);
-}
+// inline uint32 GetTileValue(tile_map *tileMap, tile_map_position pos)
+// {  
+    // return GetTileValue(tileMap, pos.AbsTileX, pos.AbsTileY, pos.AbsTileZ);
+// }
 
-inline bool32 IsTileValueEmpty(uint32 tileValue)
-{
-    return tileValue == 1 || tileValue == 3 || tileValue == 4;
-}
+// inline bool32 IsTileValueEmpty(uint32 tileValue)
+// {
+    // return tileValue == 1 || tileValue == 3 || tileValue == 4;
+// }
 
-internal bool32 IsTileMapPointEmpty(tile_map *tileMap, tile_map_position pos)
-{
-    uint32 tileChunkValue = GetTileValue(tileMap, pos.AbsTileX, pos.AbsTileY, pos.AbsTileZ);
-    bool32 empty = IsTileValueEmpty(tileChunkValue);
-    return empty;
-}
+// internal bool32 IsTileMapPointEmpty(tile_map *tileMap, tile_map_position pos)
+// {
+    // uint32 chunkValue = GetTileValue(tileMap, pos.AbsTileX, pos.AbsTileY, pos.AbsTileZ);
+    // bool32 empty = IsTileValueEmpty(chunkValue);
+    // return empty;
+// }
 
-internal void SetTileValue(memory_arena *arena, tile_map *tileMap, uint32 absTileX, uint32 absTileY, uint32 absTileZ, uint32 tileValue)
-{
-    tile_chunk_position chunkPos = GetChunkPosition(tileMap, absTileX, absTileY, absTileZ);
-    tile_chunk *tileChunk = GetTileChunk(tileMap, chunkPos.TileChunkX, chunkPos.TileChunkY, chunkPos.TileChunkZ, arena);
+// internal void SetTileValue(memory_arena *arena, tile_map *tileMap, uint32 absTileX, uint32 absTileY, uint32 absTileZ, uint32 tileValue)
+// {
+    // world_chunk_position chunkPos = GetChunkPosition(tileMap, absTileX, absTileY, absTileZ);
+    // world_chunk *chunk = GetTileChunk(tileMap, chunkPos.TileChunkX, chunkPos.TileChunkY, chunkPos.TileChunkZ, arena);
     
-    Assert(tileChunk);
+    // Assert(chunk);
 
-    SetTileValue(tileMap, tileChunk, chunkPos.RelTileX, chunkPos.RelTileY, tileValue);
-}
+    // SetTileValue(tileMap, chunk, chunkPos.RelTileX, chunkPos.RelTileY, tileValue);
+// }
 
 inline bool32
-AreOnSameTile(tile_map_position *A, tile_map_position *B)
+AreOnSameTile(world_position *A, world_position *B)
 {
     bool32 Result = ((A->AbsTileX == B->AbsTileX) &&
                      (A->AbsTileY == B->AbsTileY) &&
@@ -175,25 +170,25 @@ AreOnSameTile(tile_map_position *A, tile_map_position *B)
     return(Result);
 }
 
-tile_map_difference Subtract(tile_map *tileMap, tile_map_position *a, tile_map_position *b)
+world_difference Subtract(game_world *world, world_position *a, world_position *b)
 {
-    tile_map_difference result;
+    world_difference result;
     
     real32 dTileX = (real32)a->AbsTileX - (real32)b->AbsTileX;
     real32 dTileY = (real32)a->AbsTileY - (real32)b->AbsTileY;
     real32 dTileZ = (real32)a->AbsTileZ - (real32)b->AbsTileZ;
     
-    result.dX = tileMap->TileSideInMeters*dTileX + (a->Offset.X - b->Offset.X);
-    result.dY = tileMap->TileSideInMeters*dTileY + (a->Offset.Y - b->Offset.Y);
-    result.dZ = tileMap->TileSideInMeters*dTileZ;
+    result.dX = world->TileSideInMeters*dTileX + (a->Offset.X - b->Offset.X);
+    result.dY = world->TileSideInMeters*dTileY + (a->Offset.Y - b->Offset.Y);
+    result.dZ = world->TileSideInMeters*dTileZ;
     
     return result;
 }
 
-inline tile_map_position
+inline world_position
 CenteredTilePoint(uint32 absTileX, uint32 absTileY, uint32 absTileZ)
 {
-    tile_map_position Result = {};
+    world_position Result = {};
 
     Result.AbsTileX = absTileX;
     Result.AbsTileY = absTileY;
@@ -203,15 +198,15 @@ CenteredTilePoint(uint32 absTileX, uint32 absTileY, uint32 absTileZ)
 }
 
 
-internal void InitializeTileMap(tile_map *tileMap, real32 tileSideInMeters)
+internal void InitializeWorld(game_world *world, real32 tileSideInMeters)
 {
-    tileMap->ChunkShift = 4;
-    tileMap->ChunkMask = (1 << tileMap->ChunkShift) - 1;
-    tileMap->ChunkDim = (1 << tileMap->ChunkShift);
-    tileMap->TileSideInMeters = tileSideInMeters;
+    world->ChunkShift = 4;
+    world->ChunkMask = (1 << world->ChunkShift) - 1;
+    world->ChunkDim  = (1 << world->ChunkShift);
+    world->TileSideInMeters = tileSideInMeters;
     
-    for(uint32 tileChunkIndex = 0; tileChunkIndex < ArrayCount(tileMap->TileChunkHash); ++tileChunkIndex)
+    for(uint32 chunkIndex = 0; chunkIndex < ArrayCount(world->ChunkHash); ++chunkIndex)
     {
-        tileMap->TileChunkHash[tileChunkIndex].TileChunkX = TILE_CHUNK_UNINITIALIZED;
+        world->ChunkHash[chunkIndex].ChunkX = WORLD_CHUNK_UNINITIALIZED;
     }
 }

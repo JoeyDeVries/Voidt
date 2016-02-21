@@ -160,15 +160,15 @@ void GameOutputSound(game_sound_output_buffer *soundBuffer, game_state *gameStat
     // }        
 } 
 
-// internal bool32 IsTileEmtpy(game_world *world, tile_map *tileMap, int32 testTileX, int32 testTileY)
+// internal bool32 IsTileEmtpy(game_world *world, tile_map *world, int32 testTileX, int32 testTileY)
 // {
     // bool32 empty = false;
     
-    // if(tileMap)
+    // if(world)
     // {
         // if(testTileX >= 0 && testTileX < world->TileCountX && testTileY >=0 && testTileY < world->TileCountY)
         // {
-            // empty = GetTileValueUnchecked(world, tileMap, testTileX, testTileY) == 0;       
+            // empty = GetTileValueUnchecked(world, world, testTileX, testTileY) == 0;       
         // }
     // }
     // return empty;    
@@ -300,7 +300,7 @@ internal high_entity* MakeEntityHighFrequency(game_state *gameState, uint32 lowI
             uint32 highIndex = gameState->HighEntityCount++;
             highEntity = &gameState->HighEntities[highIndex];
         
-            tile_map_difference diff = Subtract(gameState->World->TileMap, &lowEntity->Position, &gameState->CameraPos);
+            world_difference diff = Subtract(gameState->World, &lowEntity->Position, &gameState->CameraPos);
             highEntity->Position = { diff.dX, diff.dY };
             highEntity->Velocity = { 0, 0 };
             highEntity->AbsTileZ = lowEntity->Position.AbsTileZ;
@@ -356,14 +356,14 @@ internal void MakeEntityLowFrequency(game_state *gameState, uint32 lowIndex)
     }
 }
 
-inline void OffsetAndCheckFrequencyByArea(game_state *gameState, vector2D offset, rectangle2D cameraBounds)
+inline void OffsetAndCheckFrequencyByArea(game_state *gameState, vector2D offset, rectangle2D highFrequencyBounds)
 {
     for(uint32 entityIndex = 1; entityIndex < gameState->HighEntityCount;)
     {
         high_entity *high = gameState->HighEntities + entityIndex;
         
         high->Position += offset;        
-        if(IsInRectangle(cameraBounds, high->Position))
+        if(IsInRectangle(highFrequencyBounds, high->Position))
         {
             ++entityIndex;
         }
@@ -394,8 +394,8 @@ internal uint32 AddWall(game_state *gameState, uint32 absTileX, uint32 absTileY,
     entity->Position.AbsTileX = absTileX;
     entity->Position.AbsTileY = absTileY;
     entity->Position.AbsTileZ = absTileZ;
-    entity->Height = gameState->World->TileMap->TileSideInMeters;
-    entity->Width  = gameState->World->TileMap->TileSideInMeters;
+    entity->Height = gameState->World->TileSideInMeters;
+    entity->Width  = gameState->World->TileSideInMeters;
     entity->Collides = true;
     
     return entityIndex;
@@ -445,7 +445,7 @@ internal bool32 TestWall(real32 wallX, real32 relX, real32 relY, real32 playerDe
 
 internal void MovePlayer(game_state *gameState, game_entity player, real32 dt, vector2D acceleration)
 {
-    tile_map *tileMap = gameState->World->TileMap;
+    game_world *world = gameState->World;
     
     real32 accelerationLength = LengthSq(acceleration); // get squared length, still valid to check length > 1.0 and much cheaper (no sqrt)
     if(accelerationLength > 1.0f)
@@ -466,31 +466,7 @@ internal void MovePlayer(game_state *gameState, game_entity player, real32 dt, v
     player.High->Velocity += acceleration * dt;
             
          
-    // detect collisions
-    
-
-    /*
-    uint32 minTileX = Minimum(oldPlayerPos.AbsTileX, newPlayerPos.AbsTileX);
-    uint32 minTileY = Minimum(oldPlayerPos.AbsTileY, newPlayerPos.AbsTileY);
-    uint32 maxTileX = Maximum(oldPlayerPos.AbsTileX, newPlayerPos.AbsTileX);
-    uint32 maxTileY = Maximum(oldPlayerPos.AbsTileY, newPlayerPos.AbsTileY);
-
-    // get width/height of entity in tiles (also base tiles to check on minkowski sum)
-    uint32 entityTileWidth = CeilReal32ToInt32(player.Low->Width / tileMap->TileSideInMeters);
-    uint32 entityTileHeight = CeilReal32ToInt32(player.Low->Height / tileMap->TileSideInMeters);
-    
-    minTileX -= entityTileWidth;
-    minTileY -= entityTileHeight;
-    maxTileX += entityTileWidth;
-    maxTileY += entityTileHeight;
-    Assert(maxTileX - minTileX < 32);
-    Assert(maxTileY - minTileY < 32);
-    
-    uint32 absTileZ = player.Low->Position.AbsTileZ;
-    */
-
-       
-
+    // detect collisions         
     // real32 tRemaining = 1.0f;      
     for(uint32 i = 0; i < 4; ++i)
     {
@@ -592,14 +568,14 @@ internal void MovePlayer(game_state *gameState, game_entity player, real32 dt, v
     {
         player.High->FacingDirection = player.High->Velocity.Y > 0 ? 1 : 3;
     }       
-    player.Low->Position = MapIntoTileSpace(gameState->World->TileMap, gameState->CameraPos, player.High->Position);
+    player.Low->Position = MapIntoTileSpace(gameState->World, gameState->CameraPos, player.High->Position);
 }
 
-internal void SetCamera(game_state *gameState, tile_map_position newCameraPos)
+internal void SetCamera(game_state *gameState, world_position newCameraPos)
 {
     // determine how far camera moved, and update all entities back to proper camera space
-    tile_map *tileMap = gameState->World->TileMap;
-    tile_map_difference dCameraPos = Subtract(tileMap, &newCameraPos, &gameState->CameraPos);
+    game_world *world = gameState->World;
+    world_difference dCameraPos = Subtract(world, &newCameraPos, &gameState->CameraPos);
     gameState->CameraPos = newCameraPos;
             
     vector2D entityOffsetPerFrame = {};
@@ -620,7 +596,7 @@ internal void SetCamera(game_state *gameState, tile_map_position newCameraPos)
     */
     uint32 tileSpanX = 17*3;
     uint32 tileSpanY =  9*3;
-    rectangle2D cameraBounds = RectCenterDim(vector2D { 0, 0 }, tileMap->TileSideInMeters*vector2D { (real32)tileSpanX, (real32)tileSpanY });                                                 
+    rectangle2D cameraBounds = RectCenterDim(vector2D { 0, 0 }, world->TileSideInMeters*vector2D { (real32)tileSpanX, (real32)tileSpanY });                                                 
    
     OffsetAndCheckFrequencyByArea(gameState, entityOffsetPerFrame, cameraBounds);
     
@@ -691,10 +667,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         gameState->World = PushStruct(&gameState->WorldArena, game_world);
         game_world *world = gameState->World;
-        world->TileMap = PushStruct(&gameState->WorldArena, tile_map);
+        // world->TileMap = PushStruct(&gameState->WorldArena, tile_map);
                 
-        tile_map *tileMap = world->TileMap;
-        InitializeTileMap(tileMap, 1.4f);
+        // tile_map *world = world->TileMap;
+        InitializeWorld(world, 1.4f);
         
         uint32 tilesPerWidth = 17;
         uint32 tilesPerHeight = 9;       
@@ -771,7 +747,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         }
                     }                      
                                         
-                    SetTileValue(&gameState->WorldArena, world->TileMap, absTileX, absTileY, absTileZ, tileValue);
+                    // SetTileValue(&gameState->WorldArena, world->TileMap, absTileX, absTileY, absTileZ, tileValue);
                     
                     if(tileValue == 2)
                         AddWall(gameState, absTileX, absTileY, absTileZ);
@@ -820,7 +796,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
         
         // set camera and setup initial entity frequency lists
-        tile_map_position newCameraPos = {};
+        world_position newCameraPos = {};
         newCameraPos.AbsTileX = screenBaseX*tilesPerWidth + 17/2;
         newCameraPos.AbsTileY = screenBaseY*tilesPerHeight + 9/2;
         newCameraPos.AbsTileZ = screenBaseZ;
@@ -883,24 +859,26 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     
     // move camera based on whichever entity we follow
-    tile_map *tileMap = gameState->World->TileMap;
+    game_world *world = gameState->World;
     
     // vector2D entityOffsetPerFrame = {};
     game_entity cameraFollowingEntity = GetHighEntity(gameState, gameState->CameraFollowingEntityIndex);
     if(cameraFollowingEntity.High)
     {
-        tile_map_position newCameraP = gameState->CameraPos;
+        world_position newCameraP = gameState->CameraPos;
         
-        newCameraP.AbsTileZ = cameraFollowingEntity.Low->Position.AbsTileZ;
+        // newCameraP.AbsTileZ = cameraFollowingEntity.Low->Position.AbsTileZ;
     
-        if(cameraFollowingEntity.High->Position.X > 9.0f*tileMap->TileSideInMeters)
-            newCameraP.AbsTileX += 17;
-        if(cameraFollowingEntity.High->Position.X < -9.0f*tileMap->TileSideInMeters)
-            newCameraP.AbsTileX -= 17;
-        if(cameraFollowingEntity.High->Position.Y > 5.0f*tileMap->TileSideInMeters)
-            newCameraP.AbsTileY += 9;
-        if(cameraFollowingEntity.High->Position.Y < -5.0f*tileMap->TileSideInMeters)
-            newCameraP.AbsTileY -= 9;
+        // if(cameraFollowingEntity.High->Position.X > 9.0f*world->TileSideInMeters)
+            // newCameraP.AbsTileX += 17;
+        // if(cameraFollowingEntity.High->Position.X < -9.0f*world->TileSideInMeters)
+            // newCameraP.AbsTileX -= 17;
+        // if(cameraFollowingEntity.High->Position.Y > 5.0f*world->TileSideInMeters)
+            // newCameraP.AbsTileY += 9;
+        // if(cameraFollowingEntity.High->Position.Y < -5.0f*world->TileSideInMeters)
+            // newCameraP.AbsTileY -= 9;
+        
+        newCameraP = cameraFollowingEntity.Low->Position;
         
         SetCamera(gameState, newCameraP);
     }   
@@ -910,7 +888,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
     // render to screen memory      
     int32  TileSideInPixels= 60;
-    real32 MetersToPixels = TileSideInPixels / tileMap->TileSideInMeters;       
+    real32 MetersToPixels = TileSideInPixels / world->TileSideInMeters;       
         
     real32 LowerLeftX = -TileSideInPixels / 2.0f;
     real32 LowerLeftY = screenBuffer->Height;
@@ -927,7 +905,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         {
             uint32 col = relCol + gameState->CameraPos.AbsTileX;
             uint32 row = relRow + gameState->CameraPos.AbsTileY;
-            uint32 tileID = GetTileValue(tileMap, col, row, gameState->CameraPos.AbsTileZ);
+            uint32 tileID = GetTileValue(world, col, row, gameState->CameraPos.AbsTileZ);
             
             if(tileID > 1)
             {
