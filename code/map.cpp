@@ -10,7 +10,7 @@
 ** option) any later version.
 *******************************************************************/
 
-internal void CorrectTileMapCoord(tile_map *tileMap, uint32 *tile, real32 *tileRel)
+internal void CorrectTileMapCoord(tile_map *tileMap, int32 *tile, real32 *tileRel)
 {
     int32 tileOverflow = RoundReal32ToInt32(*tileRel / tileMap->TileSideInMeters);
     *tile    += tileOverflow;
@@ -45,15 +45,14 @@ inline tile_chunk_position GetChunkPosition(tile_map *tileMap, uint32 absTileX, 
     return result;
 }
 
-const int32 TILE_CHUNK_SAFE_MARGIN = 256;
-inline tile_chunk* GetTileChunk(tile_map* tileMap, uint32 tileChunkX, uint32 tileChunkY, uint32 tileChunkZ, memory_arena *arena = 0)
+inline tile_chunk* GetTileChunk(tile_map* tileMap, int32 tileChunkX, int32 tileChunkY, int32 tileChunkZ, memory_arena *arena = 0)
 {
-    Assert(tileChunkX > TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkY > TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkZ > TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkX < UINT32_MAX - TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkY < UINT32_MAX - TILE_CHUNK_SAFE_MARGIN);
-    Assert(tileChunkZ < UINT32_MAX - TILE_CHUNK_SAFE_MARGIN);
+    Assert(tileChunkX > -TILE_CHUNK_SAFE_MARGIN);
+    Assert(tileChunkY > -TILE_CHUNK_SAFE_MARGIN);
+    Assert(tileChunkZ > -TILE_CHUNK_SAFE_MARGIN);
+    Assert(tileChunkX <  TILE_CHUNK_SAFE_MARGIN);
+    Assert(tileChunkY <  TILE_CHUNK_SAFE_MARGIN);
+    Assert(tileChunkZ <  TILE_CHUNK_SAFE_MARGIN);
     
     // TODO(Joey): better hash function
     uint32 hashValue = 19*tileChunkX + 7*tileChunkY + 3*tileChunkZ;
@@ -73,11 +72,11 @@ inline tile_chunk* GetTileChunk(tile_map* tileMap, uint32 tileChunkX, uint32 til
        if(arena && chunk->TileChunkX != 0 && !chunk->NextInHash)
        {
             chunk->NextInHash = PushStruct(arena, tile_chunk);
-            chunk->TileChunkX = 0;
             chunk = chunk->NextInHash;
+            chunk->TileChunkX = TILE_CHUNK_UNINITIALIZED;
        }
         
-        if(arena && !chunk->TileChunkX == 0)
+        if(arena && !chunk->TileChunkX == TILE_CHUNK_UNINITIALIZED)
         {
             chunk->TileChunkX = tileChunkX;
             chunk->TileChunkY = tileChunkY;
@@ -97,7 +96,7 @@ inline tile_chunk* GetTileChunk(tile_map* tileMap, uint32 tileChunkX, uint32 til
     return chunk;
 }
 
-inline uint32 GetTileValueUnchecked(tile_map *tileMap, tile_chunk *chunk, uint32 tileX, uint32 tileY)
+inline uint32 GetTileValueUnchecked(tile_map *tileMap, tile_chunk *chunk, int32 tileX, int32 tileY)
 {
     Assert(chunk);
     Assert(tileX < tileMap->ChunkDim);
@@ -106,7 +105,7 @@ inline uint32 GetTileValueUnchecked(tile_map *tileMap, tile_chunk *chunk, uint32
     return chunk->Tiles[tileY*tileMap->ChunkDim + tileX];
 }
 
-inline void SetTileValueUnchecked(tile_map *tileMap, tile_chunk *chunk, uint32 tileX, uint32 tileY, uint32 tileValue)
+inline void SetTileValueUnchecked(tile_map *tileMap, tile_chunk *chunk, int32 tileX, int32 tileY, uint32 tileValue)
 {
     Assert(chunk);
     Assert(tileX < tileMap->ChunkDim);
@@ -213,6 +212,6 @@ internal void InitializeTileMap(tile_map *tileMap, real32 tileSideInMeters)
     
     for(uint32 tileChunkIndex = 0; tileChunkIndex < ArrayCount(tileMap->TileChunkHash); ++tileChunkIndex)
     {
-        tileMap->TileChunkHash[tileChunkIndex].TileChunkX = 0;
+        tileMap->TileChunkHash[tileChunkIndex].TileChunkX = TILE_CHUNK_UNINITIALIZED;
     }
 }

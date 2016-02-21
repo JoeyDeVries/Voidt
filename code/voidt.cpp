@@ -625,10 +625,10 @@ internal void SetCamera(game_state *gameState, tile_map_position newCameraPos)
     OffsetAndCheckFrequencyByArea(gameState, entityOffsetPerFrame, cameraBounds);
     
     // TODO(Joey): move entities into high set here
-    uint32 minTileX = newCameraPos.AbsTileX - tileSpanX/2;
-    uint32 maxTileX = newCameraPos.AbsTileX + tileSpanX/2;
-    uint32 minTileY = newCameraPos.AbsTileY - tileSpanY/2;
-    uint32 maxTileY = newCameraPos.AbsTileY + tileSpanY/2;
+    int32 minTileX = newCameraPos.AbsTileX - tileSpanX/2;
+    int32 maxTileX = newCameraPos.AbsTileX + tileSpanX/2;
+    int32 minTileY = newCameraPos.AbsTileY - tileSpanY/2;
+    int32 maxTileY = newCameraPos.AbsTileY + tileSpanY/2;
     for(uint32 entityIndex = 1; entityIndex < gameState->LowEntityCount; ++entityIndex)
     {
             low_entity *low = gameState->LowEntities + entityIndex;
@@ -698,9 +698,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         uint32 tilesPerWidth = 17;
         uint32 tilesPerHeight = 9;       
-        uint32 screenBaseX = (INT16_MAX / tilesPerWidth) / 2;
-        uint32 screenBaseY = (INT16_MAX / tilesPerHeight) / 2;
-        uint32 screenBaseZ = INT16_MAX / 2;
+        uint32 screenBaseX = 0;
+        uint32 screenBaseY = 0;
+        uint32 screenBaseZ = 0;
         uint32 screenX = screenBaseX;        
         uint32 screenY = screenBaseY;
         uint32 absTileZ = screenBaseZ;

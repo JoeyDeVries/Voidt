@@ -12,6 +12,10 @@
 #ifndef VOIDT_MAP_H
 #define VOIDT_MAP_H
 
+
+const int32 TILE_CHUNK_SAFE_MARGIN = (INT32_MAX/64);
+const int32 TILE_CHUNK_UNINITIALIZED = INT32_MAX;
+
 struct tile_map_difference
 {
     real32 dX;
@@ -21,18 +25,18 @@ struct tile_map_difference
 
 struct tile_map_position
 {
-    uint32 AbsTileX; // virtual page system (first 28 bits tileMapIndex, last 4 bits tileX)
-    uint32 AbsTileY;
-    uint32 AbsTileZ;
+    int32 AbsTileX; // virtual page system (first 28 bits tileMapIndex, last 4 bits tileX)
+    int32 AbsTileY;
+    int32 AbsTileZ;
     
     vector2D Offset;
 };
 
 struct tile_chunk_position
 {
-    uint32 TileChunkX;
-    uint32 TileChunkY;
-    uint32 TileChunkZ;
+    int32 TileChunkX;
+    int32 TileChunkY;
+    int32 TileChunkZ;
     
     uint32 RelTileX;
     uint32 RelTileY;    
@@ -40,9 +44,9 @@ struct tile_chunk_position
 
 struct tile_chunk
 {    
-    uint32 TileChunkX;
-    uint32 TileChunkY;
-    uint32 TileChunkZ;
+    int32 TileChunkX;
+    int32 TileChunkY;
+    int32 TileChunkZ;
     
     uint32 *Tiles;
     
@@ -51,9 +55,9 @@ struct tile_chunk
 
 struct tile_map
 {
-    uint32 ChunkShift;
-    uint32 ChunkMask;
-    uint32 ChunkDim;
+    int32 ChunkShift;
+    int32 ChunkMask;
+    int32 ChunkDim;
     
     real32 TileSideInMeters;
         
