@@ -45,7 +45,7 @@ internal world_position MapIntoTileSpace(game_world *world, world_position baseP
     // return result;
 // }
 
-inline world_chunk* GetTileChunk(game_world* world, int32 chunkX, int32 chunkY, int32 chunkZ, memory_arena *arena = 0)
+inline world_chunk* GetWorldChunkChunk(game_world* world, int32 chunkX, int32 chunkY, int32 chunkZ, memory_arena *arena = 0)
 {
     Assert(chunkX > -WORLD_CHUNK_SAFE_MARGIN);
     Assert(chunkY > -WORLD_CHUNK_SAFE_MARGIN);
@@ -208,5 +208,41 @@ internal void InitializeWorld(game_world *world, real32 tileSideInMeters)
     for(uint32 chunkIndex = 0; chunkIndex < ArrayCount(world->ChunkHash); ++chunkIndex)
     {
         world->ChunkHash[chunkIndex].ChunkX = WORLD_CHUNK_UNINITIALIZED;
+    }
+}
+
+inline void ChangeEntityLocation(memory_arena, *arena, game_world *world, uint32 lowEntityIndex, world_position *oldPos, world_position *newPos)
+{
+    if(OldPos && AreInSameChunk(oldPos, newPos))
+    {
+        // do nothing, leave entity where it is
+    }
+    else
+    {
+        if(OldPos)
+        {
+            // pull the entity out of its current block
+            world_chunk *chunk = GetWorldChunk(world, oldPos->ChunkX, oldPos->ChunkY, oldPos->ChunkZ);
+            Assert(chunk);
+            
+            for(world_entity_block *block = &chunk->FirstBlock; block; block = block->Next)
+            {
+                
+            }
+        }
+        
+        world_chunk* chunk = GetWorldChunk(world, newPos->ChunkX, newPos->ChunkY, nwePos->ChunkZ, arena);
+        world_entity_block *block = &chunk->FirstBlock;
+        if(chunk->EntityCount == ArrayCount(chunk->LowEntityIndex))
+        {
+            // NOTE(Joey): we're out of room, get a new block
+            world_entity_block *oldBlock = PushStruct(arena, world_entity_block);
+            *oldBlock = *block;
+            *block->Next = oldBlock;
+            block->EntityCount = 0;            
+        }
+        
+        Assert(block->EntityCount < ArrayCount(block->LowEntityIndex));
+        block->LowEntityIndex[block->EntityCount++] = lowEntityIndex;
     }
 }

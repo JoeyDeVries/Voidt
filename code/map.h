@@ -25,9 +25,9 @@ struct world_difference
 
 struct world_position
 {
-    int32 AbsTileX; // virtual page system (first 28 bits tileMapIndex, last 4 bits tileX)
-    int32 AbsTileY;
-    int32 AbsTileZ;
+    int32 ChunkX; // virtual page system (first 28 bits tileMapIndex, last 4 bits tileX)
+    int32 ChunkY;
+    int32 ChunkZ;
     
     vector2D Offset;
 };
@@ -51,10 +51,8 @@ struct world_chunk
 struct game_world
 {
     real32 TileSideInMeters;
+    real32 ChunkSideInMeters;
 
-    int32 ChunkShift;
-    int32 ChunkMask;
-    int32 ChunkDim;
     world_chunk ChunkHash[4096];
 };
 

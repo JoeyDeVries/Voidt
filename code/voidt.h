@@ -139,7 +139,7 @@ struct game_state
     high_entity HighEntities[256];
 
     uint32 LowEntityCount;
-    low_entity LowEntities[4096];
+    low_entity LowEntities[1000000];
     
     
     loaded_bitmap BackDrop;
