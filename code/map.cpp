@@ -10,14 +10,27 @@
 ** option) any later version.
 *******************************************************************/
 
-internal void CorrectTileMapCoord(game_world *world, int32 *tile, real32 *tileRel)
+inline bool32 IsCanonical(game_world *world, real32 rel)
 {
-    int32 tileOverflow = RoundReal32ToInt32(*tileRel / world->TileSideInMeters);
+    bool32 result = rel >= -0.5f*world->ChunkSideInMeters && rel <=  0.5f*world->ChunkSideInMeters;
+    return result;
+}
+
+inline bool32 IsCanonical(game_world *world, vector2D offset)
+{
+    bool32 result = IsCanonical(world, offset.X) && IsCanonical(world, offset.Y);
+    return result;
+}
+
+
+internal void CorrectWorldCoord(game_world *world, int32 *tile, real32 *tileRel)
+{
+    int32 tileOverflow = RoundReal32ToInt32(*tileRel / world->ChunkSideInMeters);
     *tile    += tileOverflow;
-    *tileRel -= tileOverflow*world->TileSideInMeters;
+    *tileRel -= tileOverflow*world->ChunkSideInMeters;
     
-    Assert(*tileRel >= -0.5f*world->TileSideInMeters);
-    Assert(*tileRel <=  0.5f*world->TileSideInMeters);   
+    Assert(IsCanonical(world, *tileRel));
+   
 }
 
 internal world_position MapIntoTileSpace(game_world *world, world_position basePos, vector2D offset)
@@ -25,27 +38,26 @@ internal world_position MapIntoTileSpace(game_world *world, world_position baseP
     world_position result = basePos;
     
     result.Offset += offset;
-    CorrectTileMapCoord(world, &result.AbsTileX, &result.Offset.X);
-    CorrectTileMapCoord(world, &result.AbsTileY, &result.Offset.Y);
+    CorrectWorldCoord(world, &result.ChunkX, &result.Offset.X);
+    CorrectWorldCoord(world, &result.ChunkY, &result.Offset.Y);
     
     return result;
 }
 
+inline bool32
+AreInSameChunk(game_world *world, world_position *A, world_position *B)
+{
+    Assert(IsCanonical(world, A->Offset));
+    Assert(IsCanonical(world, B->Offset));
+    bool32 Result = ((A->ChunkX == B->ChunkX) &&
+                     (A->ChunkY == B->ChunkY) &&
+                     (A->ChunkZ == B->ChunkZ));
 
-// inline world_chunk_position GetChunkPosition(game_world *world, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
-// {
-    // world_chunk_position result;
-    
-    // result.TileChunkX = absTileX >> world->ChunkShift;
-    // result.TileChunkY = absTileY >> world->ChunkShift;
-    // result.TileChunkZ = absTileZ;
-    // result.RelTileX = absTileX & world->ChunkMask;
-    // result.RelTileY = absTileY & world->ChunkMask;
-    
-    // return result;
-// }
+    return(Result);
+}
 
-inline world_chunk* GetWorldChunkChunk(game_world* world, int32 chunkX, int32 chunkY, int32 chunkZ, memory_arena *arena = 0)
+
+inline world_chunk* GetWorldChunk(game_world* world, int32 chunkX, int32 chunkY, int32 chunkZ, memory_arena *arena = 0)
 {
     Assert(chunkX > -WORLD_CHUNK_SAFE_MARGIN);
     Assert(chunkY > -WORLD_CHUNK_SAFE_MARGIN);
@@ -91,154 +103,123 @@ inline world_chunk* GetWorldChunkChunk(game_world* world, int32 chunkX, int32 ch
     return chunk;
 }
 
-// inline uint32 GetTileValueUnchecked(tile_map *tileMap, world_chunk *chunk, int32 tileX, int32 tileY)
-// {
-    // Assert(chunk);
-    // Assert(tileX < tileMap->ChunkDim);
-    // Assert(tileY < tileMap->ChunkDim);
-    
-    // return chunk->Tiles[tileY*tileMap->ChunkDim + tileX];
-// }
-
-// inline void SetTileValueUnchecked(tile_map *tileMap, world_chunk *chunk, int32 tileX, int32 tileY, uint32 tileValue)
-// {
-    // Assert(chunk);
-    // Assert(tileX < tileMap->ChunkDim);
-    // Assert(tileY < tileMap->ChunkDim);
-    
-    // chunk->Tiles[tileY*tileMap->ChunkDim + tileX] = tileValue;
-// }
-
-
-// inline uint32 GetTileValue(tile_map *tileMap, world_chunk *chunk, uint32 tileX, uint32 tileY)
-// {
-    // uint32 tileValue = 0;
-    // if(chunk && chunk->Tiles)
-        // tileValue = GetTileValueUnchecked(tileMap, chunk, tileX, tileY);
-    // return tileValue;
-// }
-
-// inline void SetTileValue(tile_map *tileMap, world_chunk *chunk, uint32 tileX, uint32 tileY, uint32 tileValue)
-// {
-    // if(chunk && chunk->Tiles)
-        // SetTileValueUnchecked(tileMap, chunk, tileX, tileY, tileValue);
-// }
-
-// inline uint32 GetTileValue(tile_map *tileMap, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
-// {  
-    // world_chunk_position chunkPos = GetChunkPosition(tileMap, absTileX, absTileY, absTileZ);
-    // world_chunk *chunk = GetTileChunk(tileMap, chunkPos.TileChunkX, chunkPos.TileChunkY, chunkPos.TileChunkZ);
-    // uint32 chunkValue = GetTileValue(tileMap, chunk, chunkPos.RelTileX, chunkPos.RelTileY);
-    
-    // return chunkValue;
-// }
-
-// inline uint32 GetTileValue(tile_map *tileMap, tile_map_position pos)
-// {  
-    // return GetTileValue(tileMap, pos.AbsTileX, pos.AbsTileY, pos.AbsTileZ);
-// }
-
-// inline bool32 IsTileValueEmpty(uint32 tileValue)
-// {
-    // return tileValue == 1 || tileValue == 3 || tileValue == 4;
-// }
-
-// internal bool32 IsTileMapPointEmpty(tile_map *tileMap, tile_map_position pos)
-// {
-    // uint32 chunkValue = GetTileValue(tileMap, pos.AbsTileX, pos.AbsTileY, pos.AbsTileZ);
-    // bool32 empty = IsTileValueEmpty(chunkValue);
-    // return empty;
-// }
-
-// internal void SetTileValue(memory_arena *arena, tile_map *tileMap, uint32 absTileX, uint32 absTileY, uint32 absTileZ, uint32 tileValue)
-// {
-    // world_chunk_position chunkPos = GetChunkPosition(tileMap, absTileX, absTileY, absTileZ);
-    // world_chunk *chunk = GetTileChunk(tileMap, chunkPos.TileChunkX, chunkPos.TileChunkY, chunkPos.TileChunkZ, arena);
-    
-    // Assert(chunk);
-
-    // SetTileValue(tileMap, chunk, chunkPos.RelTileX, chunkPos.RelTileY, tileValue);
-// }
-
-inline bool32
-AreOnSameTile(world_position *A, world_position *B)
+inline world_position ChunkPositionFromTilePosition(game_world *world, int32 absTileX, int32 absTileY, int32 absTileZ)
 {
-    bool32 Result = ((A->AbsTileX == B->AbsTileX) &&
-                     (A->AbsTileY == B->AbsTileY) &&
-                     (A->AbsTileZ == B->AbsTileZ));
-
-    return(Result);
+    world_position result = {};
+    
+    result.ChunkX = absTileX / TILES_PER_CHUNK;
+    result.ChunkY = absTileY / TILES_PER_CHUNK;
+    result.ChunkZ = absTileZ;
+    
+    result.Offset.X = (real32)(absTileX - (result.ChunkX * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
+    result.Offset.Y = (real32)(absTileY - (result.ChunkY * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
+    
+    return result;
 }
 
 world_difference Subtract(game_world *world, world_position *a, world_position *b)
 {
     world_difference result;
     
-    real32 dTileX = (real32)a->AbsTileX - (real32)b->AbsTileX;
-    real32 dTileY = (real32)a->AbsTileY - (real32)b->AbsTileY;
-    real32 dTileZ = (real32)a->AbsTileZ - (real32)b->AbsTileZ;
+    real32 dChunkX = (real32)a->ChunkX - (real32)b->ChunkX;
+    real32 dChunkY = (real32)a->ChunkY - (real32)b->ChunkY;
+    real32 dChunkZ = (real32)a->ChunkZ - (real32)b->ChunkZ;
     
-    result.dX = world->TileSideInMeters*dTileX + (a->Offset.X - b->Offset.X);
-    result.dY = world->TileSideInMeters*dTileY + (a->Offset.Y - b->Offset.Y);
-    result.dZ = world->TileSideInMeters*dTileZ;
+    result.dX = world->ChunkSideInMeters*dChunkX + (a->Offset.X - b->Offset.X);
+    result.dY = world->ChunkSideInMeters*dChunkY + (a->Offset.Y - b->Offset.Y);
+    result.dZ = world->ChunkSideInMeters*dChunkZ;
     
     return result;
 }
 
 inline world_position
-CenteredTilePoint(uint32 absTileX, uint32 absTileY, uint32 absTileZ)
+CenteredChunkPoint(uint32 chunkX, uint32 chunkY, uint32 chunkZ)
 {
     world_position Result = {};
 
-    Result.AbsTileX = absTileX;
-    Result.AbsTileY = absTileY;
-    Result.AbsTileZ = absTileZ;
+    Result.ChunkX = chunkX;
+    Result.ChunkY = chunkY;
+    Result.ChunkZ = chunkZ;
 
     return(Result);
 }
 
-
 internal void InitializeWorld(game_world *world, real32 tileSideInMeters)
 {
-    world->ChunkShift = 4;
-    world->ChunkMask = (1 << world->ChunkShift) - 1;
-    world->ChunkDim  = (1 << world->ChunkShift);
     world->TileSideInMeters = tileSideInMeters;
+    world->ChunkSideInMeters = (real32)TILES_PER_CHUNK*tileSideInMeters;
+    world->FirstFree = 0;
     
     for(uint32 chunkIndex = 0; chunkIndex < ArrayCount(world->ChunkHash); ++chunkIndex)
     {
         world->ChunkHash[chunkIndex].ChunkX = WORLD_CHUNK_UNINITIALIZED;
+        world->ChunkHash[chunkIndex].FirstBlock.EntityCount = 0;
     }
 }
 
-inline void ChangeEntityLocation(memory_arena, *arena, game_world *world, uint32 lowEntityIndex, world_position *oldPos, world_position *newPos)
+inline void ChangeEntityLocation(memory_arena *arena, game_world *world, uint32 lowEntityIndex, world_position *oldPos, world_position *newPos)
 {
-    if(OldPos && AreInSameChunk(oldPos, newPos))
+    if(oldPos && AreInSameChunk(world, oldPos, newPos))
     {
         // do nothing, leave entity where it is
     }
     else
     {
-        if(OldPos)
+        if(oldPos)
         {
             // pull the entity out of its current block
             world_chunk *chunk = GetWorldChunk(world, oldPos->ChunkX, oldPos->ChunkY, oldPos->ChunkZ);
             Assert(chunk);
             
+            world_entity_block *firstBlock = &chunk->FirstBlock;
             for(world_entity_block *block = &chunk->FirstBlock; block; block = block->Next)
             {
-                
+                for(uint32 index = 0; index < block->EntityCount; ++index)
+                {
+                    if(block->LowEntityIndex[index] == lowEntityIndex)
+                    {
+                        // NOTE(Joey): we keep the empty spots at the first block instead of the last blocks
+                        // so we can do quick inserts; this means whenever we remove a low entity from a block
+                        // we swap the now empty place with one from the first block to free space at the head.
+                        Assert(firstBlock->EntityCount > 0);
+                        block->LowEntityIndex[index] = firstBlock->LowEntityIndex[--firstBlock->EntityCount];
+                        if(firstBlock->EntityCount == 0) // first block is empty, swap next full block as first block
+                        {
+                            if(firstBlock->Next)
+                            {
+                                world_entity_block *nextBlock = firstBlock->Next;
+                                *firstBlock = *nextBlock;
+                                
+                                nextBlock->Next = world->FirstFree;
+                                world->FirstFree = nextBlock;
+                            }                        
+                        }
+                        
+                        block = 0;
+                        break;
+                    }
+                }
             }
         }
         
-        world_chunk* chunk = GetWorldChunk(world, newPos->ChunkX, newPos->ChunkY, nwePos->ChunkZ, arena);
+        world_chunk* chunk = GetWorldChunk(world, newPos->ChunkX, newPos->ChunkY, newPos->ChunkZ, arena);
+        Assert(chunk);
+        
         world_entity_block *block = &chunk->FirstBlock;
-        if(chunk->EntityCount == ArrayCount(chunk->LowEntityIndex))
+        if(block->EntityCount == ArrayCount(block->LowEntityIndex))
         {
             // NOTE(Joey): we're out of room, get a new block
-            world_entity_block *oldBlock = PushStruct(arena, world_entity_block);
+            world_entity_block *oldBlock = world->FirstFree;
+            if(oldBlock)
+            {
+                world->FirstFree = oldBlock->Next; 
+            }
+            else
+            {
+                oldBlock = PushStruct(arena, world_entity_block);
+            }
             *oldBlock = *block;
-            *block->Next = oldBlock;
+            block->Next = oldBlock;
             block->EntityCount = 0;            
         }
         

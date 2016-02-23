@@ -14,6 +14,7 @@
 
 
 const int32 WORLD_CHUNK_SAFE_MARGIN = (INT32_MAX/64);
+const int32 TILES_PER_CHUNK = 16;
 #define WORLD_CHUNK_UNINITIALIZED INT32_MAX
 
 struct world_difference
@@ -52,6 +53,8 @@ struct game_world
 {
     real32 TileSideInMeters;
     real32 ChunkSideInMeters;
+    
+    world_entity_block *FirstFree;
 
     world_chunk ChunkHash[4096];
 };

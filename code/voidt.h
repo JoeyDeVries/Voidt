@@ -82,7 +82,7 @@ struct high_entity
 {
     vector2D Position;  // relative to camera
     vector2D Velocity;
-    uint32 AbsTileZ;
+    uint32 ChunkZ;
     uint32 FacingDirection;    
     
     real32 Z;
