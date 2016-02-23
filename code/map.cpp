@@ -23,7 +23,7 @@ inline bool32 IsCanonical(game_world *world, vector2D offset)
 }
 
 
-internal void CorrectWorldCoord(game_world *world, int32 *tile, real32 *tileRel)
+internal void CorrectChunkCoord(game_world *world, int32 *tile, real32 *tileRel)
 {
     int32 tileOverflow = RoundReal32ToInt32(*tileRel / world->ChunkSideInMeters);
     *tile    += tileOverflow;
@@ -33,13 +33,13 @@ internal void CorrectWorldCoord(game_world *world, int32 *tile, real32 *tileRel)
    
 }
 
-internal world_position MapIntoTileSpace(game_world *world, world_position basePos, vector2D offset)
+internal world_position MapIntoChunkSpace(game_world *world, world_position basePos, vector2D offset)
 {    
     world_position result = basePos;
     
     result.Offset += offset;
-    CorrectWorldCoord(world, &result.ChunkX, &result.Offset.X);
-    CorrectWorldCoord(world, &result.ChunkY, &result.Offset.Y);
+    CorrectChunkCoord(world, &result.ChunkX, &result.Offset.X);
+    CorrectChunkCoord(world, &result.ChunkY, &result.Offset.Y);
     
     return result;
 }
@@ -77,28 +77,28 @@ inline world_chunk* GetWorldChunk(game_world* world, int32 chunkX, int32 chunkY,
         if(chunk->ChunkX == chunkX &&       
            chunk->ChunkY == chunkY &&
            chunk->ChunkZ == chunkZ)
-       {
-           break;
-       }
+        {
+            break;
+        }
        
-       if(arena && (chunk->ChunkX != WORLD_CHUNK_UNINITIALIZED) && (!chunk->NextInHash))
-       {
+        if(arena && (chunk->ChunkX != WORLD_CHUNK_UNINITIALIZED) && (!chunk->NextInHash))
+        {
             chunk->NextInHash = PushStruct(arena, world_chunk);
             chunk = chunk->NextInHash;
             chunk->ChunkX = WORLD_CHUNK_UNINITIALIZED;
-       }
+        }
         
         if(arena && (chunk->ChunkX == WORLD_CHUNK_UNINITIALIZED))
         {
             chunk->ChunkX = chunkX;
             chunk->ChunkY = chunkY;
             chunk->ChunkZ = chunkZ;
-
             
-            chunk->NextInHash = 0;
-            
+            chunk->NextInHash = 0;            
             break;
         }
+        
+        chunk = chunk->NextInHash;
     } while(chunk);
     return chunk;
 }
@@ -111,8 +111,10 @@ inline world_position ChunkPositionFromTilePosition(game_world *world, int32 abs
     result.ChunkY = absTileY / TILES_PER_CHUNK;
     result.ChunkZ = absTileZ;
     
-    result.Offset.X = (real32)(absTileX - (result.ChunkX * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
-    result.Offset.Y = (real32)(absTileY - (result.ChunkY * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
+    result.Offset.X = (real32)((absTileX - TILES_PER_CHUNK/2) - (result.ChunkX * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
+    result.Offset.Y = (real32)((absTileY - TILES_PER_CHUNK/2)- (result.ChunkY * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
+    
+    Assert(IsCanonical(world, result.Offset));
     
     return result;
 }
@@ -171,10 +173,11 @@ inline void ChangeEntityLocation(memory_arena *arena, game_world *world, uint32 
             world_chunk *chunk = GetWorldChunk(world, oldPos->ChunkX, oldPos->ChunkY, oldPos->ChunkZ);
             Assert(chunk);
             
+            bool32 notFound = true;
             world_entity_block *firstBlock = &chunk->FirstBlock;
-            for(world_entity_block *block = &chunk->FirstBlock; block; block = block->Next)
+            for(world_entity_block *block = &chunk->FirstBlock; block && notFound; block = block->Next)
             {
-                for(uint32 index = 0; index < block->EntityCount; ++index)
+                for(uint32 index = 0; index < block->EntityCount && notFound; ++index)
                 {
                     if(block->LowEntityIndex[index] == lowEntityIndex)
                     {
@@ -195,7 +198,7 @@ inline void ChangeEntityLocation(memory_arena *arena, game_world *world, uint32 
                             }                        
                         }
                         
-                        block = 0;
+                        notFound = false;
                         break;
                     }
                 }
