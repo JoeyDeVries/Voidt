@@ -73,11 +73,6 @@ inline vector2D operator-(vector2D a, vector2D b)
 {
     return { a.X - b.X, a.Y - b.Y };
 }
-// inline vector2D operator-(vector2D a, real32 b)
-// {
-    // return { a.X - b, a.Y - b }; 
-// }
-
 
 // -negate
 inline vector2D operator-(vector2D a)
@@ -96,18 +91,151 @@ inline vector2D& operator*=(vector2D &a, vector2D value)
     a = a * value;
     return a;
 }
-// +=
-// inline vector2D& operator+=(vector2D &a, real32 value)
-// {
-    // a = a + value;
-    // return a;
-// }
 inline vector2D& operator+=(vector2D &a, vector2D value)
 {
     a = a + value;
     return a;
 }
 
+// ----------------------------------------------------------------------------
+//      VECTOR 3D
+// ----------------------------------------------------------------------------
+union vector3D
+{
+    struct 
+    { 
+        real32 X;
+        real32 Y; 
+        real32 Z; 
+    };
+    struct 
+    { 
+        real32 R;
+        real32 G; 
+        real32 B; 
+    };
+    real32 E[3];
+};
+
+
+// *
+inline vector3D operator*(vector3D a, vector3D b)
+{
+    return { a.X * b.X, a.Y * b.Y, a.Z * b.Z };
+}
+inline vector3D operator*(vector3D a, real32 b)
+{
+    return { a.X * b, a.Y * b, a.Z * b };    
+}
+inline vector3D operator*(real32 b, vector3D a)
+{
+    return a * b;
+}
+
+// +
+inline vector3D operator+(vector3D a, vector3D b)
+{
+    return { a.X + b.X, a.Y + b.Y, a.Z + b.Z };
+}
+// -
+inline vector3D operator-(vector3D a, vector3D b)
+{
+    return { a.X - b.X, a.Y - b.Y, a.Z - b.Z };
+}
+
+// -negate
+inline vector3D operator-(vector3D a)
+{
+    return { -a.X, -a.Y, -a.Z };
+}
+
+// *=
+inline vector3D& operator*=(vector3D &a, real32 value)
+{
+    a = a * value;
+    return a;
+}
+inline vector3D& operator*=(vector3D &a, vector3D value)
+{
+    a = a * value;
+    return a;
+}
+inline vector3D& operator+=(vector3D &a, vector3D value)
+{
+    a = a + value;
+    return a;
+}
+
+// ----------------------------------------------------------------------------
+//      VECTOR 4D
+// ----------------------------------------------------------------------------
+union vector4D
+{
+    struct 
+    { 
+        real32 X;
+        real32 Y; 
+        real32 Z; 
+        real32 W; 
+    };
+    struct 
+    { 
+        real32 R;
+        real32 G; 
+        real32 B; 
+        real32 A; 
+    };
+    real32 E[4];
+};
+
+
+// *
+inline vector4D operator*(vector4D a, vector4D b)
+{
+    return { a.X * b.X, a.Y * b.Y, a.Z * b.Z, a.W * b.W };
+}
+inline vector4D operator*(vector4D a, real32 b)
+{
+    return { a.X * b, a.Y * b, a.Z * b, a.W * b };    
+}
+inline vector4D operator*(real32 b, vector4D a)
+{
+    return a * b;
+}
+
+// +
+inline vector4D operator+(vector4D a, vector4D b)
+{
+    return { a.X + b.X, a.Y + b.Y, a.Z + b.Z, a.W + b.W };
+}
+// -
+inline vector4D operator-(vector4D a, vector4D b)
+{
+    return { a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W };
+}
+
+// -negate
+inline vector4D operator-(vector4D a)
+{
+    return { -a.X, -a.Y, -a.Z, -a.W };
+}
+
+// *=
+inline vector4D& operator*=(vector4D &a, real32 value)
+{
+    a = a * value;
+    return a;
+}
+inline vector4D& operator*=(vector4D &a, vector4D value)
+{
+    a = a * value;
+    return a;
+}
+inline vector4D& operator+=(vector4D &a, vector4D value)
+{
+    a = a + value;
+    return a;
+}
 
 
 
