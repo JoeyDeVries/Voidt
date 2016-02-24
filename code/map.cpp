@@ -10,6 +10,18 @@
 ** option) any later version.
 *******************************************************************/
 
+inline world_position NullPosition()
+{
+    world_position result = {};
+    result.ChunkX = WORLD_CHUNK_UNINITIALIZED;
+    return result;
+}
+
+inline bool32 IsValid(world_position pos)
+{
+    return pos.ChunkX != WORLD_CHUNK_UNINITIALIZED;
+}
+
 inline bool32 IsCanonical(game_world *world, real32 rel)
 {
     bool32 result = rel >= -0.5f*world->ChunkSideInMeters && rel <=  0.5f*world->ChunkSideInMeters;
@@ -159,9 +171,12 @@ internal void InitializeWorld(game_world *world, real32 tileSideInMeters)
     }
 }
 
-inline void ChangeEntityLocation(memory_arena *arena, game_world *world, uint32 lowEntityIndex, world_position *oldPos, world_position *newPos)
+inline void ChangeEntityLocationRaw(memory_arena *arena, game_world *world, uint32 lowEntityIndex, world_position *oldPos, world_position *newPos)
 {
-    if(oldPos && AreInSameChunk(world, oldPos, newPos))
+    Assert(!oldPos || IsValid(*oldPos));
+    Assert(!newPos || IsValid(*newPos));
+    
+    if(oldPos && newPos && AreInSameChunk(world, oldPos, newPos))
     {
         // do nothing, leave entity where it is
     }
@@ -173,60 +188,74 @@ inline void ChangeEntityLocation(memory_arena *arena, game_world *world, uint32 
             world_chunk *chunk = GetWorldChunk(world, oldPos->ChunkX, oldPos->ChunkY, oldPos->ChunkZ);
             Assert(chunk);
             
-            bool32 notFound = true;
-            world_entity_block *firstBlock = &chunk->FirstBlock;
-            for(world_entity_block *block = &chunk->FirstBlock; block && notFound; block = block->Next)
+            if(chunk)
             {
-                for(uint32 index = 0; index < block->EntityCount && notFound; ++index)
+                bool32 notFound = true;
+                world_entity_block *firstBlock = &chunk->FirstBlock;
+                for(world_entity_block *block = firstBlock; block && notFound; block = block->Next)
                 {
-                    if(block->LowEntityIndex[index] == lowEntityIndex)
+                    for(uint32 index = 0; index < block->EntityCount && notFound; ++index)
                     {
-                        // NOTE(Joey): we keep the empty spots at the first block instead of the last blocks
-                        // so we can do quick inserts; this means whenever we remove a low entity from a block
-                        // we swap the now empty place with one from the first block to free space at the head.
-                        Assert(firstBlock->EntityCount > 0);
-                        block->LowEntityIndex[index] = firstBlock->LowEntityIndex[--firstBlock->EntityCount];
-                        if(firstBlock->EntityCount == 0) // first block is empty, swap next full block as first block
+                        if(block->LowEntityIndex[index] == lowEntityIndex)
                         {
-                            if(firstBlock->Next)
+                            // NOTE(Joey): we keep the empty spots at the first block instead of the last blocks
+                            // so we can do quick inserts; this means whenever we remove a low entity from a block
+                            // we swap the now empty place with one from the first block to free space at the head.
+                            Assert(firstBlock->EntityCount > 0);
+                            block->LowEntityIndex[index] = firstBlock->LowEntityIndex[--firstBlock->EntityCount];
+                            if(firstBlock->EntityCount == 0) // first block is empty, swap next full block as first block
                             {
-                                world_entity_block *nextBlock = firstBlock->Next;
-                                *firstBlock = *nextBlock;
-                                
-                                nextBlock->Next = world->FirstFree;
-                                world->FirstFree = nextBlock;
-                            }                        
+                                if(firstBlock->Next)
+                                {
+                                    world_entity_block *nextBlock = firstBlock->Next;
+                                    *firstBlock = *nextBlock;
+                                    
+                                    nextBlock->Next = world->FirstFree;
+                                    world->FirstFree = nextBlock;
+                                }                        
+                            }
+                            
+                            notFound = false;
                         }
-                        
-                        notFound = false;
-                        break;
                     }
                 }
             }
         }
         
-        world_chunk* chunk = GetWorldChunk(world, newPos->ChunkX, newPos->ChunkY, newPos->ChunkZ, arena);
-        Assert(chunk);
-        
-        world_entity_block *block = &chunk->FirstBlock;
-        if(block->EntityCount == ArrayCount(block->LowEntityIndex))
+        if(newPos)
         {
-            // NOTE(Joey): we're out of room, get a new block
-            world_entity_block *oldBlock = world->FirstFree;
-            if(oldBlock)
+            world_chunk* chunk = GetWorldChunk(world, newPos->ChunkX, newPos->ChunkY, newPos->ChunkZ, arena);
+            Assert(chunk);
+            
+            world_entity_block *block = &chunk->FirstBlock;
+            if(block->EntityCount == ArrayCount(block->LowEntityIndex))
             {
-                world->FirstFree = oldBlock->Next; 
+                // NOTE(Joey): we're out of room, get a new block
+                world_entity_block *oldBlock = world->FirstFree;
+                if(oldBlock)
+                {
+                    world->FirstFree = oldBlock->Next; 
+                }
+                else
+                {
+                    oldBlock = PushStruct(arena, world_entity_block);
+                }
+                *oldBlock = *block;
+                block->Next = oldBlock;
+                block->EntityCount = 0;            
             }
-            else
-            {
-                oldBlock = PushStruct(arena, world_entity_block);
-            }
-            *oldBlock = *block;
-            block->Next = oldBlock;
-            block->EntityCount = 0;            
+            
+            Assert(block->EntityCount < ArrayCount(block->LowEntityIndex));
+            block->LowEntityIndex[block->EntityCount++] = lowEntityIndex;
         }
-        
-        Assert(block->EntityCount < ArrayCount(block->LowEntityIndex));
-        block->LowEntityIndex[block->EntityCount++] = lowEntityIndex;
     }
 }
+
+internal void ChangeEntityLocation(memory_arena *arena, game_world *world, uint32 lowEntityIndex, low_entity *lowEntity, world_position *oldPos, world_position *newPos)
+{
+    ChangeEntityLocationRaw(arena, world, lowEntityIndex, oldPos, newPos);
+    if(newPos)
+        lowEntity->Position = *newPos;
+    else
+        lowEntity->Position = NullPosition();
+}  

@@ -13,8 +13,9 @@
 #define VOIDT_H
 
 #include "common/voidt_common.h"
-#include "math/math.h"
 #include "voidt_platform.h"
+#include "intrinsics.h"
+#include "math/math.h"
 #include "map.h"
 
 
@@ -97,6 +98,7 @@ enum entity_type
     ENTITY_TYPE_WALL,    
     ENTITY_TYPE_FAMILIAR,
     ENTITY_TYPE_MONSTER,
+    ENTITY_TYPE_SWORD,
 };
 
 #define HIT_POINT_SUB_COUNT 4
@@ -121,6 +123,9 @@ struct low_entity
     
     uint32 HitPointMax;
     hit_point HitPoint[16];
+    
+    uint32 SwordLowIndex;
+    real32 DistanceRemaining;
 };
 
 struct game_entity
@@ -162,6 +167,7 @@ struct game_state
     
     loaded_bitmap BackDrop;
     loaded_bitmap Shadow;
+    loaded_bitmap Sword;
     hero_bitmaps HeroBitmaps[4];
     
     loaded_bitmap Tree;

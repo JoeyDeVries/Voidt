@@ -253,6 +253,10 @@ inline real32 LengthSq(vector2D a)
 {
     return InnerProduct(a, a);
 }
+inline real32 Length(vector2D a)
+{
+    return SquareRoot(LengthSq(a));
+}
 
 
 
