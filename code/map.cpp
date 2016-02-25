@@ -24,7 +24,8 @@ inline bool32 IsValid(world_position pos)
 
 inline bool32 IsCanonical(game_world *world, real32 rel)
 {
-    bool32 result = rel >= -0.5f*world->ChunkSideInMeters && rel <=  0.5f*world->ChunkSideInMeters;
+    float epsilon = 0.0001f;
+    bool32 result = rel >= -0.5f*world->ChunkSideInMeters - epsilon && rel <=  0.5f*world->ChunkSideInMeters + epsilon;
     return result;
 }
 

@@ -17,6 +17,8 @@
 #include "intrinsics.h"
 #include "math/math.h"
 #include "map.h"
+#include "sim_region.h"
+#include "entity.h"
 
 
 inline game_controller_input* GetController(game_input *input, uint32 controllerIndex)
@@ -34,26 +36,37 @@ struct memory_arena
 };
 
 
-internal void InitializeArena(memory_arena *arena, memory_index size, uint8 *base)
+inline void InitializeArena(memory_arena *arena, memory_index size, void *base)
 {
     arena->Size = size;
-    arena->Base = base;
+    arena->Base = (uint8*)base;
     arena->Used = 0;
 }
 
 #define PushStruct(arena, type) (type*)PushSize_(arena, sizeof(type))
 #define PushArray(arena, count, type) (type*)PushSize_(arena, (count)*sizeof(type))
-internal void* PushSize_(memory_arena *arena, memory_index size)
+inline void* PushSize_(memory_arena *arena, memory_index size)
 {
     Assert(arena->Used + size <= arena->Size);
     void* address = arena->Base + arena->Used;
     arena->Used += size;
     
     // clear to zero (redundant for now)    
-    for(uint8* memory = (uint8*)address; memory < arena->Base + arena->Used + size; ++memory)
-        *memory = 0;
+    // ZeroSize(size, address);
+    // for(uint8* memory = (uint8*)address; memory < arena->Base + arena->Used + size; ++memory)
+        // *memory = 0;
     
     return address;
+}
+#define ZeroStruct(instance) ZeroSize(sizeof(instance), &instance)
+inline void ZeroSize(memory_index size, void *ptr)
+{
+    // TODO(Joey): check for performance
+    uint8 *byte = (uint8*)ptr;
+    while(size--)
+    {
+        *byte++ = 0;
+    }
 }
 
 
@@ -80,60 +93,25 @@ struct hero_bitmaps
 
 struct high_entity
 {
-    vector2D Position;  // relative to camera
-    vector2D Velocity;
-    uint32 ChunkZ;
-    uint32 FacingDirection;    
-    
-    real32 Z;
-    real32 dZ;
-    
-    uint32 LowEntityIndex;
+  
 };
 
-enum entity_type
-{
-    ENTITY_TYPE_NULL,
-    ENTITY_TYPE_PLAYER,
-    ENTITY_TYPE_WALL,    
-    ENTITY_TYPE_FAMILIAR,
-    ENTITY_TYPE_MONSTER,
-    ENTITY_TYPE_SWORD,
-};
 
-#define HIT_POINT_SUB_COUNT 4
-struct hit_point
-{
-    uint8 Flags;
-    uint8 FilledAmount;
-};
+
+
 
 struct low_entity
 {
-    entity_type Type;
-    
+    sim_entity Sim;
     world_position Position;
-    real32 Width;
-    real32 Height;
-    
-    bool32 Collides;
-    int32 dAbsTileZ; // for "stairs"
-    
-    uint32 HighEntityIndex;
-    
-    uint32 HitPointMax;
-    hit_point HitPoint[16];
-    
-    uint32 SwordLowIndex;
-    real32 DistanceRemaining;
 };
 
-struct game_entity
-{      
-    uint32 LowIndex;
-    high_entity *High;
-    low_entity *Low;
-};
+// struct game_entity
+// {      
+    // uint32 LowIndex;
+    // high_entity *High;
+    // low_entity *Low;
+// };
 
 
 struct entity_visible_piece
@@ -147,6 +125,14 @@ struct entity_visible_piece
     vector2D Dimension;
 };
 
+struct controlled_player
+{
+    uint32 EntityIndex;
+    vector2D Acceleration;
+    vector2D AccelerationSword;
+    real32 dZ;
+};
+
 struct game_state
 {
     memory_arena WorldArena;
@@ -155,7 +141,7 @@ struct game_state
     uint32 CameraFollowingEntityIndex;
     world_position CameraPos;
     
-    uint32 PlayerControllerIndex[ArrayCount(((game_input*)0)->Controllers)];
+    controlled_player ControlledPlayers[ArrayCount(((game_input*)0)->Controllers)];
     
     uint32 HighEntityCount;
     high_entity HighEntities[256];
@@ -180,5 +166,15 @@ struct entity_visible_piece_group
     uint32 PieceCount;
     entity_visible_piece Pieces[32];
 };
+
+inline low_entity* GetLowEntity(game_state *gameState, uint32 lowIndex)
+{
+    low_entity *result = 0;
+    if(lowIndex > 0 && lowIndex < gameState->LowEntityCount)
+    {
+        result = gameState->LowEntities + lowIndex;
+    }
+    return result;
+}
 
 #endif
