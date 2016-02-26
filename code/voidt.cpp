@@ -742,7 +742,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                 if(sword && IsSet(sword, ENTITY_FLAG_NONSPATIAL))
                                 {
                                     sword->DistanceLimit = 5.0f;
-                                    MakeEntitySpatial(sword, entity->Position,  5.0f*controlledPlayer->AccelerationSword);
+                                    MakeEntitySpatial(sword, entity->Position,  entity->Velocity + 5.0f*controlledPlayer->AccelerationSword);
                                 }
                             }
                     
