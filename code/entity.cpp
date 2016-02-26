@@ -24,37 +24,7 @@ inline move_spec DefaultMoveSpec()
 
 internal void UpdateFamiliar(sim_region *simRegion, sim_entity *entity, real32 dt)
 {
-    sim_entity *closestPlayer = 0;
-    real32 closestPlayerDSq = Square(10.0f); // NOTE(Joey): don't search for more than 10 meters
-    sim_entity *testEntity = simRegion->Entities;
-    for(uint32 testEntityIndex = 1; testEntityIndex < simRegion->EntityCount; ++testEntityIndex)
-    {
-        if(testEntity->Type == ENTITY_TYPE_PLAYER)
-        {
-            real32 testDSq = LengthSq(testEntity->Position - entity->Position);
-            if(testDSq <= closestPlayerDSq)
-            {
-                closestPlayer = testEntity;
-                closestPlayerDSq = testDSq;
-            }
-        }
-    }
-    
-    vector2D acceleration = {};
-    if(closestPlayer && closestPlayerDSq > Square(3.0f))
-    {
-        real32 speed = 0.5f;
-        real32 oneOverLength = speed / SquareRoot(closestPlayerDSq);
-        acceleration = oneOverLength * (closestPlayer->Position - entity->Position);
-        
-    }
-    
-    move_spec moveSpec = DefaultMoveSpec();
-    moveSpec.UnitMaxAccelVector = true;
-    moveSpec.Speed = 50.0f;
-    moveSpec.Drag = 8.0f;
-    
-    MoveEntity(simRegion, entity, dt, &moveSpec, acceleration);
+   
 }
 
 internal void UpdateMonster(sim_region *simRegion, sim_entity *entity, real32 dt)
@@ -77,25 +47,5 @@ inline void MakeEntitySpatial(sim_entity *entity, vector2D pos, vector2D velocit
 
 internal void UpdateSword(sim_region *simRegion, sim_entity *entity, real32 dt)
 {
-    if(IsSet(entity, ENTITY_FLAG_NONSPATIAL))
-    {
-      
-    }
-    else
-    {
-        move_spec moveSpec = DefaultMoveSpec();
-        moveSpec.UnitMaxAccelVector = false;
-        moveSpec.Speed = 0.0f;
-        moveSpec.Drag = 0.0f;
-
-        vector2D oldPos = entity->Position;
-        MoveEntity(simRegion, entity, dt, &moveSpec, { 0, 0 });
-        real32 distanceTraveled = Length(entity->Position - oldPos);
-
-        entity->DistanceRemaining -= distanceTraveled;
-        if(entity->DistanceRemaining < 0.0f)
-        {
-            MakeEntityNonSpatial(entity);
-        }
-    }
+   
 }

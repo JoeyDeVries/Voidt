@@ -28,20 +28,26 @@ internal sim_entity_hash* GetHashFromStorageIndex(sim_region *simRegion, uint32 
     return result;
 }
 
-// internal void MapStorageIndexToEntity(sim_region *simRegion, uint32 storageIndex, sim_entity *entity)
-// {
-    // sim_entity_hash *entry = GetHashFromStorageIndex(simRegion, storageIndex);
-    // Assert(entry->Index == 0 || entry->Index == storageIndex);
-    // entry->Index = storageIndex;
-    // entry->Ptr = entity;
-// }
-
 inline sim_entity* GetEntityByStorageIndex(sim_region *simRegion, uint32 storageIndex)
 {
     sim_entity_hash *entry = GetHashFromStorageIndex(simRegion, storageIndex);
     sim_entity *result = entry->Ptr;
     return result;
 }
+
+inline vector2D GetSimSpacePos(sim_region *simRegion, low_entity *stored)
+{
+    // TODO(Joey): set this to signal NAN in debug mode, to make sure noone ever 
+    // uses this position.
+    vector2D result = INVALID_POS;
+    if(!IsSet(&stored->Sim, ENTITY_FLAG_NONSPATIAL))
+    {
+        world_difference diff = Subtract(simRegion->World, &stored->Position, &simRegion->Origin);
+        result = { diff.dX, diff.dY };    
+    }
+    return result;
+}
+
 
 internal sim_entity* AddEntity(game_state *gameState, sim_region *simRegion, uint32 storageIndex, low_entity *source, vector2D *simPos);
 inline void LoadEntityReference(game_state *gameState, sim_region *simRegion, entity_reference *ref)
@@ -52,7 +58,10 @@ inline void LoadEntityReference(game_state *gameState, sim_region *simRegion, en
         
         if(entry->Ptr == 0)
         {
-            entry->Ptr = AddEntity(gameState, simRegion, ref->Index, GetLowEntity(gameState, ref->Index), 0);
+            entry->Index = ref->Index;
+            low_entity *lowEntity = GetLowEntity(gameState, ref->Index);
+            vector2D pos = GetSimSpacePos(simRegion, lowEntity);
+            entry->Ptr = AddEntity(gameState, simRegion, ref->Index, lowEntity, &pos);
         }
         
         ref->Ptr = entry->Ptr;
@@ -89,26 +98,14 @@ internal sim_entity* AddEntityRaw(game_state *gameState, sim_region *simRegion, 
                 Assert(!IsSet(&source->Sim, ENTITY_FLAG_SIMMING));
                 SetFlag(&source->Sim, ENTITY_FLAG_SIMMING);
             }
+            
             entity->StorageIndex = storageIndex;
+            entity->Updatable = false;                      
         }
         else
             InvalidCodePath;
     }
     return entity;
-}
-
-
-inline vector2D GetSimSpacePos(sim_region *simRegion, low_entity *stored)
-{
-    // TODO(Joey): set this to signal NAN in debug mode, to make sure noone ever 
-    // uses this position.
-    vector2D result = INVALID_POS;
-    if(!IsSet(&stored->Sim, ENTITY_FLAG_NONSPATIAL))
-    {
-        world_difference diff = Subtract(simRegion->World, &stored->Position, &simRegion->Origin);
-        result = { diff.dX, diff.dY };    
-    }
-    return result;
 }
 
 
@@ -120,6 +117,7 @@ internal sim_entity* AddEntity(game_state *gameState, sim_region *simRegion, uin
         if(simPos)
         {
             dest->Position = *simPos;
+            dest->Updatable = IsInRectangle(simRegion->UpdateBounds, dest->Position);    
         }
         else
         {
@@ -134,8 +132,12 @@ internal sim_region* BeginSimulation(memory_arena *simArena, game_state *gameSta
     sim_region *simRegion = PushStruct(simArena, sim_region);
     ZeroStruct(simRegion->Hash);
     
+    // TODO(Joey): calculate eventually from maximum value an entity may move + radius
+    real32 updateSafetyMargin = 1.0f;
+    
     simRegion->World = world;
-    simRegion->Bounds = bounds;
+    simRegion->UpdateBounds = bounds;
+    simRegion->Bounds = AddRadius(simRegion->UpdateBounds, updateSafetyMargin, updateSafetyMargin);
     simRegion->Origin = origin;
     
     simRegion->MaxEntityCount = 4096;
@@ -210,33 +212,11 @@ internal void EndSimulation(sim_region *region, game_state *gameState)
             // if(entity->Position.Y < -5.0f*world->TileSideInMeters)
                 // newCameraP.ChunkY -= 9;
             
+            newCameraP = stored->Position;
             gameState->CameraPos = newCameraP;       
         }   
   
-    }
-    
-    // after simulation, update camera
-    // sim_entity *CameraFollowingEntity = GetEntityByStorageIndex(region, gameState->CameraFollowingEntityIndex);
-    // if(cameraFollowingEntity)
-    // if(entity->StorageIndex == gameState->CameraFollowingEntityIndex)
-    // {
-        // world_position newCameraP = gameState->CameraPos;
-        
-        // newCameraP.ChunkZ = cameraFollowingEntity.Low->Position.ChunkZ;
-    
-        // if(cameraFollowingEntity.High->Position.X > 9.0f*world->TileSideInMeters)
-            // newCameraP.ChunkX += 17;
-        // if(cameraFollowingEntity.High->Position.X < -9.0f*world->TileSideInMeters)
-            // newCameraP.ChunkX -= 17;
-        // if(cameraFollowingEntity.High->Position.Y > 5.0f*world->TileSideInMeters)
-            // newCameraP.ChunkY += 9;
-        // if(cameraFollowingEntity.High->Position.Y < -5.0f*world->TileSideInMeters)
-            // newCameraP.ChunkY -= 9;
-        
-        // newCameraP = cameraFollowingEntity.Low->Position;
-        
-        // SetCamera(gameState, newCameraP);
-    // }   
+    }    
 }
 
 
@@ -259,6 +239,19 @@ internal bool32 TestWall(real32 wallX, real32 relX, real32 relY, real32 playerDe
     return false;
 }    
 
+inline bool32 TypesMatch(sim_entity *a, sim_entity *b, entity_type aType, entity_type bType)
+{
+    return a->Type == aType && b->Type == bType;
+}
+
+internal void HandleCollision(sim_entity *a, sim_entity *b)
+{
+    if(a->Type == ENTITY_TYPE_MONSTER && b->Type == ENTITY_TYPE_SWORD)
+    {
+        --a->HitPointMax;
+        MakeEntityNonSpatial(b);
+    }
+}
 
 internal void MoveEntity(sim_region *simRegion, sim_entity *entity, real32 dt, move_spec *moveSpec, vector2D acceleration)
 {
@@ -284,94 +277,130 @@ internal void MoveEntity(sim_region *simRegion, sim_entity *entity, real32 dt, m
     vector2D playerDelta = 0.5f * acceleration*Square(dt) + entity->Velocity*dt;
     vector2D newPlayerPos = oldPlayerPos + playerDelta;
     entity->Velocity += acceleration * dt;
+    
+    // z
+    real32 ddZ = -9.81f;
+    entity->Z +=  0.5f*ddZ*Square(dt) + entity->dZ*dt;
+    entity->dZ = entity->dZ + ddZ*dt;
+    if(entity->Z < 0)
+        entity->Z = 0.0f;
             
          
     // detect collisions         
-    // real32 tRemaining = 1.0f;      
+    real32 distanceRemaining = entity->DistanceLimit;
+    if(distanceRemaining == 0.0f)
+        distanceRemaining  = 10000.0f;
+        
     for(uint32 i = 0; i < 4; ++i)
     {
         real32 tMin = 1.0f;
-        vector2D wallNormal = {};                
-        sim_entity *hitEntity = 0;
         
-        vector2D desiredPosition = entity->Position + playerDelta;
-        
-        if(IsSet(entity, ENTITY_FLAG_COLLIDES) && !IsSet(entity, ENTITY_FLAG_NONSPATIAL))
+        real32 playerDeltaLength = Length(playerDelta);                            
+        if(playerDeltaLength > 0.0f)
         {
-            for(uint32 entityIndex = 0; entityIndex < simRegion->EntityCount; ++entityIndex)
+            if(playerDeltaLength > distanceRemaining)
+                tMin = distanceRemaining / playerDeltaLength;
+            
+            vector2D wallNormal = {};                
+            sim_entity *hitEntity = 0;
+            
+            vector2D desiredPosition = entity->Position + playerDelta;
+            
+            bool32 stopsOnCollision = IsSet(entity, ENTITY_FLAG_COLLIDES);
+            
+            if(!IsSet(entity, ENTITY_FLAG_NONSPATIAL))
             {
-                /* NOTE(Joey):
-                   
-                  We're going to use the Minkowski sum for collision detection.
-                  The idea is to reduce the relative complex shapes of objects to check
-                  by adding the shape of one along the exterior of the other to reduce
-                  one of the shapes to a single point. Collision detection then simply
-                  becomes a point-shape algorithm, which is relatively easier to implement.
-                 
-                  At the moment we simply only deal with quads (for more complex shapes we
-                  want to use the GJK algorithm). We solve this by adding entity-quad's 
-                  halfwidths to the shape(s) to test, reducing the player entity to a 
-                  point.
-                */               
-                sim_entity *testEntity = simRegion->Entities + entityIndex;
-                if(entity != testEntity)
-                {                 
-                    if(IsSet(testEntity, ENTITY_FLAG_COLLIDES) && !IsSet(entity, ENTITY_FLAG_NONSPATIAL))
-                    {
-                        real32 diameterW = testEntity->Width  + entity->Width;
-                        real32 diameterH = testEntity->Height + entity->Height;
-                        vector2D minCorner = -0.5f*vector2D{diameterW, diameterH};
-                        vector2D maxCorner = 0.5f*vector2D{diameterW, diameterH};
+                for(uint32 entityIndex = 0; entityIndex < simRegion->EntityCount; ++entityIndex)
+                {
+                    /* NOTE(Joey):
+                       
+                      We're going to use the Minkowski sum for collision detection.
+                      The idea is to reduce the relative complex shapes of objects to check
+                      by adding the shape of one along the exterior of the other to reduce
+                      one of the shapes to a single point. Collision detection then simply
+                      becomes a point-shape algorithm, which is relatively easier to implement.
+                     
+                      At the moment we simply only deal with quads (for more complex shapes we
+                      want to use the GJK algorithm). We solve this by adding entity-quad's 
+                      halfwidths to the shape(s) to test, reducing the player entity to a 
+                      point.
+                    */               
+                    sim_entity *testEntity = simRegion->Entities + entityIndex;
+                    if(entity != testEntity)
+                    {                 
+                        if(IsSet(testEntity, ENTITY_FLAG_COLLIDES) && !IsSet(testEntity, ENTITY_FLAG_NONSPATIAL))
+                        {
+                            real32 diameterW = testEntity->Width  + entity->Width;
+                            real32 diameterH = testEntity->Height + entity->Height;
+                            vector2D minCorner = -0.5f*vector2D{diameterW, diameterH};
+                            vector2D maxCorner = 0.5f*vector2D{diameterW, diameterH};
 
-                        vector2D rel = entity->Position - testEntity->Position;
-                 
-                        if(TestWall(minCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y,
-                                    &tMin, minCorner.Y, maxCorner.Y))
-                        {
-                            wallNormal = {-1, 0};
-                            hitEntity = testEntity;
+                            vector2D rel = entity->Position - testEntity->Position;
+                     
+                            if(TestWall(minCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y,
+                                        &tMin, minCorner.Y, maxCorner.Y))
+                            {
+                                wallNormal = {-1, 0};
+                                hitEntity = testEntity;
+                            }
+                        
+                            if(TestWall(maxCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y,
+                                        &tMin, minCorner.Y, maxCorner.Y))
+                            {
+                                wallNormal = {1, 0};
+                                hitEntity = testEntity;
+                            }
+                        
+                            if(TestWall(minCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X,
+                                        &tMin, minCorner.X, maxCorner.X))
+                            {
+                                wallNormal = {0, -1};
+                                hitEntity = testEntity;
+                            }
+                        
+                            if(TestWall(maxCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X,
+                                        &tMin, minCorner.X, maxCorner.X))
+                            {
+                                wallNormal = {0, 1};
+                                hitEntity = testEntity;
+                            }     
                         }
-                    
-                        if(TestWall(maxCorner.X, rel.X, rel.Y, playerDelta.X, playerDelta.Y,
-                                    &tMin, minCorner.Y, maxCorner.Y))
-                        {
-                            wallNormal = {1, 0};
-                            hitEntity = testEntity;
-                        }
-                    
-                        if(TestWall(minCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X,
-                                    &tMin, minCorner.X, maxCorner.X))
-                        {
-                            wallNormal = {0, -1};
-                            hitEntity = testEntity;
-                        }
-                    
-                        if(TestWall(maxCorner.Y, rel.Y, rel.X, playerDelta.Y, playerDelta.X,
-                                    &tMin, minCorner.X, maxCorner.X))
-                        {
-                            wallNormal = {0, 1};
-                            hitEntity = testEntity;
-                        }     
-                    }
-                }            
-            }    
+                    }            
+                }   
+            }       
+            
             entity->Position += tMin*playerDelta;    
-            // special collision events, should something happen? (like stairs, cinematic start areas)
+            distanceRemaining -= tMin*playerDeltaLength;
+            // NOTE(Joey): special collision events, should something happen? (like stairs, cinematic start areas)
             if(hitEntity)
             {
-                entity->Velocity = entity->Velocity - 1*InnerProduct(entity->Velocity, wallNormal)*wallNormal;
                 playerDelta = desiredPosition - entity->Position;
-                playerDelta = playerDelta - 1*InnerProduct(playerDelta, wallNormal)*wallNormal;
-                // tRemaining -= tMin*tRemaining;
+                if(stopsOnCollision)
+                {
+                    entity->Velocity = entity->Velocity - 1*InnerProduct(entity->Velocity, wallNormal)*wallNormal;
+                    playerDelta = playerDelta - 1*InnerProduct(playerDelta, wallNormal)*wallNormal;
+                }
                 
-                // high_entity *hitHigh = gameState->HighEntities + hitHighEntityIndex;
-                // low_entity  *hitLow  = gameState->LowEntities  + hitHigh->LowEntityIndex;
-                // entity->AbsTileZ += hitLow->dAbsTileZ;
+                // collision dispatch
+                sim_entity *a = entity;
+                sim_entity *b = hitEntity; 
+                if(a->Type > b->Type) // NOTE(Joey): sort by entity type; ensure we're always at top of double dispatch matrix
+                {
+                    sim_entity *temp = a;
+                    a = b;
+                    b = temp;
+                }
+                HandleCollision(a, b);
             }
             else
-                break;
+                break;            
         }
-    }                         
+    }                   
+
+    if(entity->DistanceLimit != 0.0f)
+    {
+        entity->DistanceLimit = distanceRemaining;
+    }
     
     // determine new facing direction
     if(entity->Velocity.X == 0.0f && entity->Velocity.Y == 0.0f)
@@ -387,17 +416,3 @@ internal void MoveEntity(sim_region *simRegion, sim_entity *entity, real32 dt, m
         entity->FacingDirection = entity->Velocity.Y > 0 ? 1 : 3;
     }       
 }
-
-// internal void SimCameraRegion(game_state *gameState)
-// {
-    // determine how far camera moved, and update all entities back to proper camera space
-    // game_world *world = gameState->World;
-    
-    // uint32 tileSpanX = 17*3;
-    // uint32 tileSpanY =  9*3;
-    // rectangle2D cameraBounds = RectCenterDim(vector2D { 0, 0 }, world->TileSideInMeters*vector2D { (real32)tileSpanX, (real32)tileSpanY });                 
-      
-    // sim_region *simRegion = BeginSim(simArena, world, gameState->CameraPos, cameraBounds);
-    
-    // EndSim(simRegion, gameState);
-// }

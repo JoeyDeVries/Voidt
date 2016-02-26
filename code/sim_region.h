@@ -45,8 +45,8 @@ union entity_reference
 
 enum sim_entity_flags :uint32_t
 {
-    ENTITY_FLAG_COLLIDES = (1 << 1),
-    ENTITY_FLAG_NONSPATIAL = (1 << 2),
+    ENTITY_FLAG_COLLIDES = (1 << 0),
+    ENTITY_FLAG_NONSPATIAL = (1 << 1),
     
     
     ENTITY_FLAG_SIMMING = (1 << 30),    
@@ -56,6 +56,7 @@ enum sim_entity_flags :uint32_t
 struct sim_entity
 {
     uint32 StorageIndex;
+    bool32 Updatable;
     
     entity_type Type;
     uint32 Flags;
@@ -67,6 +68,8 @@ struct sim_entity
     
     real32 Z;
     real32 dZ;
+    
+    real32 DistanceLimit;
        
     
     
@@ -83,8 +86,6 @@ struct sim_entity
     hit_point HitPoint[16];
     
     entity_reference Sword;
-    real32 DistanceRemaining;
-    
 };
 
 struct sim_entity_hash
@@ -99,6 +100,7 @@ struct sim_region
     
     world_position Origin;
     rectangle2D Bounds;
+    rectangle2D UpdateBounds;
     
     uint32 MaxEntityCount;
     uint32 EntityCount;

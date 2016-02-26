@@ -307,6 +307,16 @@ inline rectangle2D RectCenterDim(vector2D center, vector2D dim)
     return RectCenterHalfDim(center, 0.5f*dim);
 }
 
+inline rectangle2D AddRadius(rectangle2D rectangle, real32 radiusWidth, real32 radiusHeight)
+{
+    rectangle2D result;
+    
+    result.Min = rectangle.Min - vector2D{ radiusWidth, radiusHeight };
+    result.Max = rectangle.Max + vector2D{ radiusWidth, radiusHeight };
+    
+    return result;
+}
+
 inline bool32 IsInRectangle(rectangle2D rectangle, vector2D test)
 {
     bool32 result = test.X >= rectangle.Min.X &&
