@@ -9,6 +9,8 @@
 ** Creative Commons, either version 4 of the License, or (at your
 ** option) any later version.
 *******************************************************************/
+
+
 inline move_spec DefaultMoveSpec()
 {
     move_spec result;
@@ -60,20 +62,40 @@ internal void UpdateMonster(sim_region *simRegion, sim_entity *entity, real32 dt
     
 }
 
+inline void MakeEntityNonSpatial(sim_entity *entity)
+{
+    SetFlag(entity, ENTITY_FLAG_NONSPATIAL);
+    entity->Position = INVALID_POS;
+}
+
+inline void MakeEntitySpatial(sim_entity *entity, vector2D pos, vector2D velocity)
+{
+    ClearFlag(entity, ENTITY_FLAG_NONSPATIAL);
+    entity->Position = pos;
+    entity->Velocity = velocity;
+}
+
 internal void UpdateSword(sim_region *simRegion, sim_entity *entity, real32 dt)
 {
-    move_spec moveSpec = DefaultMoveSpec();
-    moveSpec.UnitMaxAccelVector = false;
-    moveSpec.Speed = 0.0f;
-    moveSpec.Drag = 0.0f;
-    
-    vector2D oldPos = entity->Position;
-    MoveEntity(simRegion, entity, dt, &moveSpec, { 0, 0 });
-    real32 distanceTraveled = Length(entity->Position - oldPos);
-    
-    entity->DistanceRemaining -= distanceTraveled;
-    if(entity->DistanceRemaining < 0.0f)
+    if(IsSet(entity, ENTITY_FLAG_NONSPATIAL))
     {
-        Assert(!"TODO: BUILD SYSTEM TO REMOVE ENTITIES FROM SIMULATION");
+      
+    }
+    else
+    {
+        move_spec moveSpec = DefaultMoveSpec();
+        moveSpec.UnitMaxAccelVector = false;
+        moveSpec.Speed = 0.0f;
+        moveSpec.Drag = 0.0f;
+
+        vector2D oldPos = entity->Position;
+        MoveEntity(simRegion, entity, dt, &moveSpec, { 0, 0 });
+        real32 distanceTraveled = Length(entity->Position - oldPos);
+
+        entity->DistanceRemaining -= distanceTraveled;
+        if(entity->DistanceRemaining < 0.0f)
+        {
+            MakeEntityNonSpatial(entity);
+        }
     }
 }

@@ -12,5 +12,20 @@
 #ifndef ENTITY_H
 #define ENTITY_h
 
+#define INVALID_POS { 100000.0f, 100000.0f }
+
+inline bool32 IsSet(sim_entity *entity, uint32 flag)
+{
+    bool32 result = entity->Flags & flag;
+    return result;
+}
+inline void SetFlag(sim_entity *entity, uint32 flag)
+{
+    entity->Flags |= flag;
+}
+inline void ClearFlag(sim_entity *entity, uint32 flag)
+{
+    entity->Flags &= ~flag;
+}
 
 #endif

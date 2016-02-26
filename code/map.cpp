@@ -252,11 +252,25 @@ inline void ChangeEntityLocationRaw(memory_arena *arena, game_world *world, uint
     }
 }
 
-internal void ChangeEntityLocation(memory_arena *arena, game_world *world, uint32 lowEntityIndex, low_entity *lowEntity, world_position *oldPos, world_position *newPos)
+internal void ChangeEntityLocation(memory_arena *arena, game_world *world, uint32 lowEntityIndex, low_entity *lowEntity,  world_position newPosInit)
 {
+    world_position *oldPos = 0;
+    world_position *newPos = 0;
+    
+    if(!IsSet(&lowEntity->Sim, ENTITY_FLAG_NONSPATIAL) && IsValid(lowEntity->Position))
+        oldPos = &lowEntity->Position;
+    if(IsValid(newPosInit))
+        newPos = &newPosInit;
+    
     ChangeEntityLocationRaw(arena, world, lowEntityIndex, oldPos, newPos);
     if(newPos)
+    {
         lowEntity->Position = *newPos;
+        ClearFlag(&lowEntity->Sim, ENTITY_FLAG_NONSPATIAL);
+    }
     else
+    {
         lowEntity->Position = NullPosition();
+        SetFlag(&lowEntity->Sim, ENTITY_FLAG_NONSPATIAL);
+    }
 }  

@@ -43,14 +43,25 @@ union entity_reference
     uint32 Index;
 };
 
+enum sim_entity_flags :uint32_t
+{
+    ENTITY_FLAG_COLLIDES = (1 << 1),
+    ENTITY_FLAG_NONSPATIAL = (1 << 2),
+    
+    
+    ENTITY_FLAG_SIMMING = (1 << 30),    
+};
+
+
 struct sim_entity
 {
     uint32 StorageIndex;
     
     entity_type Type;
+    uint32 Flags;
     
     vector2D Position;  // relative to camera
-    // vector2D Velocity;
+    vector2D Velocity;
     uint32 ChunkZ;
     // 
     
@@ -59,12 +70,11 @@ struct sim_entity
        
     
     
-    vector2D Velocity;
     uint32 FacingDirection;    
     real32 Width;
     real32 Height;
     
-    bool32 Collides;
+    // bool32 Collides;
     int32 dAbsTileZ; // for "stairs"
     
     // uint32 HighEntityIndex;

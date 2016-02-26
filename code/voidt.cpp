@@ -394,7 +394,7 @@ struct add_low_entity_result
     uint32 LowIndex;
 };
 
-internal add_low_entity_result AddLowEntity(game_state *gameState, entity_type type, world_position *pos)
+internal add_low_entity_result AddLowEntity(game_state *gameState, entity_type type, world_position pos)
 {
     Assert(gameState->LowEntityCount < ArrayCount(gameState->LowEntities));
     uint32 index = gameState->LowEntityCount++;
@@ -402,9 +402,10 @@ internal add_low_entity_result AddLowEntity(game_state *gameState, entity_type t
     low_entity *lowEntity = gameState->LowEntities + index;
     *lowEntity = {};    
     lowEntity->Sim.Type = type;
+    lowEntity->Position = NullPosition();
     
     // place entity in spatial hash-based world
-    ChangeEntityLocation(&gameState->WorldArena, gameState->World, index, lowEntity, 0, pos);
+    ChangeEntityLocation(&gameState->WorldArena, gameState->World, index, lowEntity, pos);
 
     
     add_low_entity_result result;
@@ -419,11 +420,11 @@ internal add_low_entity_result AddWall(game_state *gameState, uint32 absTileX, u
 {
     world_position pos = ChunkPositionFromTilePosition(gameState->World, absTileX, absTileY, absTileZ);
     
-    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_WALL, &pos); 
+    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_WALL, pos); 
    
     entity.Low->Sim.Height = gameState->World->TileSideInMeters;
     entity.Low->Sim.Width  = gameState->World->TileSideInMeters;
-    entity.Low->Sim.Collides = true;
+    SetFlag(&entity.Low->Sim, ENTITY_FLAG_COLLIDES);
     
     return entity;
 }
@@ -442,11 +443,11 @@ internal void InitHitPoints(low_entity *lowEntity, uint32 hitPointCount)
 
 internal add_low_entity_result AddSword(game_state *gameState)
 {
-    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_SWORD, 0);
+    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_SWORD, NullPosition());
     
     entity.Low->Sim.Height = 0.5f;
     entity.Low->Sim.Width = 1.0f;
-    entity.Low->Sim.Collides = false;
+    // SetFlag(&entity.Low->Sim, ENTITY_FLAG_NONSPATIAL);
     
     return entity;
 }
@@ -455,12 +456,12 @@ internal add_low_entity_result AddSword(game_state *gameState)
 internal add_low_entity_result AddPlayer(game_state *gameState)
 {
     world_position pos = gameState->CameraPos;
-    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_PLAYER, &pos);
+    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_PLAYER, pos);
     
     InitHitPoints(entity.Low, 3);
     
     entity.Low->Position = gameState->CameraPos;
-    entity.Low->Sim.Collides = true;
+    SetFlag(&entity.Low->Sim, ENTITY_FLAG_COLLIDES);
 
     entity.Low->Sim.Height = 0.5f;
     entity.Low->Sim.Width = 1.0f;
@@ -479,13 +480,13 @@ internal add_low_entity_result AddPlayer(game_state *gameState)
 internal add_low_entity_result AddMonster(game_state *gameState, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
 {
     world_position pos = ChunkPositionFromTilePosition(gameState->World, absTileX, absTileY, absTileZ);    
-    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_MONSTER, &pos);
+    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_MONSTER, pos);
     
     InitHitPoints(entity.Low, 3);
     
     entity.Low->Sim.Height = 0.5f;
     entity.Low->Sim.Width = 1.0f;
-    entity.Low->Sim.Collides = true;
+    SetFlag(&entity.Low->Sim, ENTITY_FLAG_COLLIDES);
     
     return entity;
 }
@@ -493,11 +494,11 @@ internal add_low_entity_result AddMonster(game_state *gameState, uint32 absTileX
 internal add_low_entity_result AddFamiliar(game_state *gameState, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
 {
     world_position pos = ChunkPositionFromTilePosition(gameState->World, absTileX, absTileY, absTileZ);    
-    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_FAMILIAR, &pos);
+    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_FAMILIAR, pos);
     
     entity.Low->Sim.Height = 0.5f;
     entity.Low->Sim.Width = 1.0f;
-    entity.Low->Sim.Collides = false;
+    SetFlag(&entity.Low->Sim, ENTITY_FLAG_COLLIDES);
     
     return entity;
 }
@@ -586,7 +587,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if(!memory->IsInitialized)
     {              
         // NOTE(Joey): Reserve entity slot 0 for the null entity
-        AddLowEntity(gameState, ENTITY_TYPE_NULL, 0);
+        AddLowEntity(gameState, ENTITY_TYPE_NULL, NullPosition());
         // gameState->HighEntityCount = 1; // reserve spot 0 for null entity
 
         gameState->BackDrop = DEBUGLoadBMP(thread, memory->DEBUGPlatformReadEntireFile, "test/test_background.bmp");
@@ -760,6 +761,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                      cameraTileX,
                                                      cameraTileY, 
                                                      cameraTileZ);
+        gameState->CameraPos = newCameraPos;
         
         AddMonster(gameState, cameraTileX + 2, cameraTileY + 2, cameraTileZ);
         AddFamiliar(gameState, cameraTileX - 2, cameraTileY + 2, cameraTileZ);
@@ -781,7 +783,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         {
             if(controller->Start.EndedDown)
             {
-                controlledPlayer = {};
+                // controlledPlayer = {};
                 controlledPlayer->EntityIndex = AddPlayer(gameState).LowIndex;
                 // gameState->PlayerControllerIndex[controllerIndex] = entity.LowIndex;                
             }
@@ -789,6 +791,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         else
         {
             controlledPlayer->Acceleration = {};
+            controlledPlayer->dZ = 0.0f;
+            controlledPlayer->AccelerationSword = {};
             if(controller->IsAnalog)
             {
                 // analog movement tuning
@@ -818,7 +822,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             if(controller->Start.EndedDown)
                 controlledPlayer->dZ = 3.0f;
             
-            controlledPlayer->AccelerationSword = {};
+           
             if(controller->ActionUp.EndedDown)
                 controlledPlayer->AccelerationSword = {  0.0f,  1.0f };    
             if(controller->ActionDown.EndedDown)
@@ -897,25 +901,26 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 // NOTE(Joey): figure out which controller is running this player and get its input requests
                 for(uint32 controllerIndex = 0; controllerIndex < ArrayCount(gameState->ControlledPlayers); ++controllerIndex)
                 {
-                    controlled_player *controlledHero = gameState->ControlledPlayers + controllerIndex;
-                    if(entity->StorageIndex == controlledHero->EntityIndex)
+                    controlled_player *controlledPlayer = gameState->ControlledPlayers + controllerIndex;
+                    if(entity->StorageIndex == controlledPlayer->EntityIndex)
                     {
-                        entity->dZ = controlledHero->dZ;
+                        if(controlledPlayer->dZ != 0.0f)
+                            entity->dZ = controlledPlayer->dZ;
+                        
                         move_spec moveSpec;
                         moveSpec.UnitMaxAccelVector = true;
                         moveSpec.Speed = 50.0f;
                         moveSpec.Drag = 8.0f;
                             
-                        MoveEntity(simRegion, entity, input->dtPerFrame, &moveSpec, controlledHero->Acceleration);
+                        MoveEntity(simRegion, entity, input->dtPerFrame, &moveSpec, controlledPlayer->Acceleration);
                         
-                        if(controlledHero->AccelerationSword.X != 0.0f || controlledHero->AccelerationSword.Y != 0.0f)
+                        if(controlledPlayer->AccelerationSword.X != 0.0f || controlledPlayer->AccelerationSword.Y != 0.0f)
                         {   // initiate sword sequence if not yet active
                             sim_entity *sword = entity->Sword.Ptr;
-                            if(sword)
+                            if(sword && IsSet(sword, ENTITY_FLAG_NONSPATIAL))
                             {
-                                sword->Position = entity->Position;
                                 sword->DistanceRemaining = 5.0f;
-                                sword->Velocity = 5.0f*controlledHero->AccelerationSword;
+                                MakeEntitySpatial(sword, sword->Position,  5.0f*controlledPlayer->AccelerationSword);
                             }
                         }
                 
