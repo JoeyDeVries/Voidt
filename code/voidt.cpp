@@ -322,6 +322,8 @@ internal add_low_entity_result AddPlayer(game_state *gameState)
     add_low_entity_result sword = AddSword(gameState);
     entity.Low->Sim.Sword.Index = sword.LowIndex;
     
+    // AddCollisionRule(gameState, sword.LowIndex, entity.LowIndex, false);
+    
     if(gameState->CameraFollowingEntityIndex == 0)
     {
         gameState->CameraFollowingEntityIndex = entity.LowIndex;
@@ -408,6 +410,79 @@ internal void DrawHitPoints(entity_visible_piece_group *pieceGroup, sim_entity *
             
         }
     }    
+}
+
+
+internal void ClearCollisionRules(game_state *gameState, uint32 storageIndex)
+{
+    // TODO(Joey): make better data structure that allows for removal of collision rules
+    // without searching the entire hash table.
+    for(uint32 hashBucket = 0; hashBucket < ArrayCount(gameState->CollisionRuleHash); ++hashBucket)
+    {
+        for(pairwise_collision_rule **rule = &gameState->CollisionRuleHash[hashBucket];
+        *rule;)
+        {
+            if((*rule)->StorageIndexA == storageIndex || (*rule)->StorageIndexB == storageIndex)
+            {
+                pairwise_collision_rule *removedRule = *rule;
+                *rule = (*rule)->NextInHash;
+                
+                removedRule->NextInHash = gameState->FirstFreeCollisionRule;
+                gameState->FirstFreeCollisionRule = removedRule;  
+            }
+            else
+            {
+                rule = &(*rule)->NextInHash;
+            }
+        }
+    }
+}
+
+internal void AddCollisionRule(game_state *gameState, uint32 storageIndexA, uint32 storageIndexB, bool32 shouldCollide)
+{
+    if(storageIndexA > storageIndexB) 
+    {
+        uint32 temp = storageIndexA;
+        storageIndexA = storageIndexB;
+        storageIndexB = temp;
+    }
+    
+    pairwise_collision_rule *found = 0;
+    int32 hashValue = storageIndexA & (ArrayCount(gameState->CollisionRuleHash) - 1);    
+    for(pairwise_collision_rule *rule = gameState->CollisionRuleHash[hashValue];
+        rule;
+        rule = rule->NextInHash)
+    {
+        if(rule->StorageIndexA == storageIndexA && rule->StorageIndexB == storageIndexB)
+        {
+            found = rule;
+            // result = rule->ShouldCollide;
+            break;
+        }
+    }
+    if(!found)
+    {   // NOTE(Joey): we didn't find any collision rule, create new one (or take from free list)
+        found = gameState->FirstFreeCollisionRule;
+        if(found)
+        {
+            gameState->FirstFreeCollisionRule = found->NextInHash;
+        }
+        else
+        {
+            found = PushStruct(&gameState->WorldArena, pairwise_collision_rule);                       
+        }
+        // insert at the head so point to previous head
+        found->NextInHash = gameState->CollisionRuleHash[hashValue];
+        gameState->CollisionRuleHash[hashValue] = found;
+        
+    }
+    
+    if(found)
+    {
+        found->StorageIndexA = storageIndexA;
+        found->StorageIndexB = storageIndexB;
+        found->ShouldCollide = shouldCollide;
+    }
 }
     
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -743,6 +818,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                 {
                                     sword->DistanceLimit = 5.0f;
                                     MakeEntitySpatial(sword, entity->Position,  entity->Velocity + 5.0f*controlledPlayer->AccelerationSword);
+                                    AddCollisionRule(gameState, sword->StorageIndex, entity->StorageIndex, false);
                                 }
                             }
                     
@@ -779,6 +855,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     // entity->DistanceRemaining -= distanceTraveled;
                     if(entity->DistanceLimit == 0.0f)
                     {
+                        ClearCollisionRules(gameState, entity->StorageIndex);
                         MakeEntityNonSpatial(entity);
                     }
                     
@@ -833,7 +910,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             
             if(!IsSet(entity, ENTITY_FLAG_NONSPATIAL))
             {             
-                MoveEntity(simRegion, entity, input->dtPerFrame, &moveSpec, acceleration);
+                MoveEntity(gameState, simRegion, entity, input->dtPerFrame, &moveSpec, acceleration);
             }
             
             real32 entityGroundPointX = screenCenter.X + MetersToPixels*entity->Position.X;
