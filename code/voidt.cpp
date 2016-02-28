@@ -274,8 +274,8 @@ internal add_low_entity_result AddWall(game_state *gameState, uint32 absTileX, u
     
     add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_WALL, pos); 
    
-    entity.Low->Sim.Height = gameState->World->TileSideInMeters;
-    entity.Low->Sim.Width  = gameState->World->TileSideInMeters;
+    entity.Low->Sim.Size.X = gameState->World->TileSideInMeters;
+    entity.Low->Sim.Size.Y  = gameState->World->TileSideInMeters;
     SetFlag(&entity.Low->Sim, ENTITY_FLAG_COLLIDES);
     
     return entity;
@@ -297,8 +297,8 @@ internal add_low_entity_result AddSword(game_state *gameState)
 {
     add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_SWORD, NullPosition());
     
-    entity.Low->Sim.Height = 0.5f;
-    entity.Low->Sim.Width = 1.0f;
+    entity.Low->Sim.Size.Y = 0.5f;
+    entity.Low->Sim.Size.X = 1.0f;
     // SetFlag(&entity.Low->Sim, ENTITY_FLAG_NONSPATIAL);
     
     return entity;
@@ -313,8 +313,8 @@ internal add_low_entity_result AddPlayer(game_state *gameState)
    
     // entity.Low->Position = gameState->CameraPos;
 
-    entity.Low->Sim.Height = 0.5f;
-    entity.Low->Sim.Width = 1.0f;
+    entity.Low->Sim.Size.Y = 0.5f;
+    entity.Low->Sim.Size.X = 1.0f;
     SetFlag(&entity.Low->Sim, ENTITY_FLAG_COLLIDES);
 
     InitHitPoints(entity.Low, 3);
@@ -339,8 +339,8 @@ internal add_low_entity_result AddMonster(game_state *gameState, uint32 absTileX
     
     InitHitPoints(entity.Low, 3);
     
-    entity.Low->Sim.Height = 0.5f;
-    entity.Low->Sim.Width = 1.0f;
+    entity.Low->Sim.Size.Y = 0.5f;
+    entity.Low->Sim.Size.X = 1.0f;
     SetFlag(&entity.Low->Sim, ENTITY_FLAG_COLLIDES);
     
     return entity;
@@ -351,8 +351,8 @@ internal add_low_entity_result AddFamiliar(game_state *gameState, uint32 absTile
     world_position pos = ChunkPositionFromTilePosition(gameState->World, absTileX, absTileY, absTileZ);    
     add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_FAMILIAR, pos);
     
-    entity.Low->Sim.Height = 0.5f;
-    entity.Low->Sim.Width = 1.0f;
+    entity.Low->Sim.Size.Y = 0.5f;
+    entity.Low->Sim.Size.X = 1.0f;
     SetFlag(&entity.Low->Sim, ENTITY_FLAG_COLLIDES);
     
     return entity;
@@ -751,7 +751,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
     memory_arena simArena = {};
     InitializeArena(&simArena, memory->TransientStorageSize,  memory->TransientStorage);
-    sim_region *simRegion = BeginSimulation(&simArena, gameState, world, gameState->CameraPos, cameraBounds);
+    sim_region *simRegion = BeginSimulation(&simArena, gameState, world, input->dtPerFrame, gameState->CameraPos, cameraBounds);
     
     
     
@@ -809,7 +809,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                             moveSpec.UnitMaxAccelVector = true;
                             moveSpec.Speed = 50.0f;
                             moveSpec.Drag = 8.0f;
-                            acceleration = vector3D{ controlledPlayer->Acceleration.X, controlledPlayer->Acceleration.Y , 0.0f};    
+                            acceleration = vector3D{ controlledPlayer->Acceleration.X, controlledPlayer->Acceleration.Y , acceleration.Z};    
                             
                             
                             if(controlledPlayer->AccelerationSword.X != 0.0f || controlledPlayer->AccelerationSword.Y != 0.0f)

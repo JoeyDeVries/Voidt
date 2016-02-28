@@ -74,6 +74,12 @@ inline void StoreEntityReference(entity_reference *ref)
         ref->Index = ref->Ptr->StorageIndex;
 }
 
+inline bool32 EntityOverlapsRectangle(rectangle3D rect, vector3D pos, vector3D size)
+{
+    rectangle3D grown = AddRadius(rect, 0.5f*size);
+    return IsInRectangle(grown, pos);
+}
+
 
 internal sim_entity* AddEntityRaw(game_state *gameState, sim_region *simRegion, uint32 storageIndex, low_entity *source)
 {
@@ -117,7 +123,7 @@ internal sim_entity* AddEntity(game_state *gameState, sim_region *simRegion, uin
         if(simPos)
         {
             dest->Position = *simPos;
-            dest->Updatable = IsInRectangle(simRegion->UpdateBounds, dest->Position);    
+            dest->Updatable = EntityOverlapsRectangle(simRegion->UpdateBounds, dest->Position, dest->Size);    
         }
         else
         {
@@ -127,17 +133,19 @@ internal sim_entity* AddEntity(game_state *gameState, sim_region *simRegion, uin
     return dest;
 }
 
-internal sim_region* BeginSimulation(memory_arena *simArena, game_state *gameState, game_world *world, world_position origin, rectangle3D bounds)
+internal sim_region* BeginSimulation(memory_arena *simArena, game_state *gameState, game_world *world, real32 dt, world_position origin, rectangle3D bounds)
 {       
     sim_region *simRegion = PushStruct(simArena, sim_region);
     ZeroStruct(simRegion->Hash);
     
     // TODO(Joey): calculate eventually from maximum value an entity may move + radius
-    real32 updateSafetyMargin = 1.0f;
+    simRegion->MaxEntityRadius = 5.0f;
+    simRegion->MaxEntityVelocity = 30.0f; 
+    real32 updateSafetyMargin = simRegion->MaxEntityRadius + dt*simRegion->MaxEntityVelocity;
     real32 updateSafetyMarginZ = 1.0f;
     
     simRegion->World = world;
-    simRegion->UpdateBounds = bounds;
+    simRegion->UpdateBounds = AddRadius(bounds, vector3D { simRegion->MaxEntityRadius, simRegion->MaxEntityRadius, simRegion->MaxEntityRadius });
     simRegion->Bounds = AddRadius(simRegion->UpdateBounds, { updateSafetyMargin, updateSafetyMargin, updateSafetyMarginZ });
     simRegion->Origin = origin;
     
@@ -166,7 +174,7 @@ internal sim_region* BeginSimulation(memory_arena *simArena, game_state *gameSta
                         if(!IsSet(&low->Sim, ENTITY_FLAG_NONSPATIAL))
                         {
                             vector3D simSpacePos = GetSimSpacePos(simRegion, low);
-                            if(IsInRectangle(simRegion->Bounds, simSpacePos))
+                            if(EntityOverlapsRectangle(simRegion->Bounds, simSpacePos, low->Sim.Size))
                             {
                                 AddEntity(gameState, simRegion, lowEntityIndex, low, &simSpacePos);
                             }
@@ -213,7 +221,9 @@ internal void EndSimulation(sim_region *region, game_state *gameState)
             // if(entity->Position.Y < -5.0f*world->TileSideInMeters)
                 // newCameraP.ChunkY -= 9;
             
+            real32 prevCamZ = newCameraP.Offset.Z;
             newCameraP = stored->Position;
+            newCameraP.Offset.Z = prevCamZ;
             gameState->CameraPos = newCameraP;       
         }   
   
@@ -334,6 +344,7 @@ internal void MoveEntity(game_state *gameState, sim_region *simRegion, sim_entit
     vector3D playerDelta = 0.5f * acceleration*Square(dt) + entity->Velocity*dt;
     vector3D newPlayerPos = oldPlayerPos + playerDelta;
     entity->Velocity += acceleration * dt;
+    Assert(LengthSq(entity->Velocity) <= Square(simRegion->MaxEntityVelocity));
                 
          
     // detect collisions         
@@ -379,9 +390,9 @@ internal void MoveEntity(game_state *gameState, sim_region *simRegion, sim_entit
                     if(ShouldCollide(gameState, entity, testEntity))
                     {                 
                        
-                        vector3D minkowskiSum = { testEntity->Width  + entity->Width,
-                                                  testEntity->Height + entity->Height,
-                                                  2.0f * world->TileDepthInMeters };
+                        vector3D minkowskiSum = { testEntity->Size.X  + entity->Size.X,
+                                                  testEntity->Size.Y + entity->Size.Y,
+                                                  testEntity->Size.Z + entity->Size.Z };
                         
                         vector3D minCorner = -0.5f*minkowskiSum;
                         vector3D maxCorner =  0.5f*minkowskiSum;
@@ -446,7 +457,10 @@ internal void MoveEntity(game_state *gameState, sim_region *simRegion, sim_entit
 
     // hacky ground collision
     if(entity->Position.Z < 0)
+    {
         entity->Position.Z = 0.0f;    
+        entity->Velocity.Z = 0.0f;;
+    }
 
     if(entity->DistanceLimit != 0.0f)
     {

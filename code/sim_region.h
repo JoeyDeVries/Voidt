@@ -74,8 +74,7 @@ struct sim_entity
     
     
     uint32 FacingDirection;    
-    real32 Width;
-    real32 Height;
+    vector3D Size;
     
     // bool32 Collides;
     int32 dAbsTileZ; // for "stairs"
@@ -97,6 +96,8 @@ struct sim_entity_hash
 struct sim_region
 {
     game_world *World;
+    real32 MaxEntityRadius;
+    real32 MaxEntityVelocity;
     
     world_position Origin;
     rectangle3D Bounds;
