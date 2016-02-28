@@ -128,9 +128,10 @@ struct entity_visible_piece
 struct controlled_player
 {
     uint32 EntityIndex;
+    vector3D Velocity;
     vector2D Acceleration;
     vector2D AccelerationSword;
-    real32 dZ;
+    // real32 dZ;
 };
 
 struct pairwise_collision_rule

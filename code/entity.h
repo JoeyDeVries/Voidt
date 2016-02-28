@@ -12,7 +12,7 @@
 #ifndef ENTITY_H
 #define ENTITY_h
 
-#define INVALID_POS { 100000.0f, 100000.0f }
+#define INVALID_POS { 100000.0f, 100000.0f,  100000.0f }
 
 inline bool32 IsSet(sim_entity *entity, uint32 flag)
 {

@@ -114,6 +114,17 @@ union vector3D
         real32 G; 
         real32 B; 
     };
+    // swizzling 
+    struct
+    {
+        vector2D XY;
+        real32 _ignored;
+    };
+    struct
+    {
+        real32 _ignored;
+        vector2D YZ;
+    };
     real32 E[3];
 };
 
@@ -244,11 +255,29 @@ inline vector4D& operator+=(vector4D &a, vector4D value)
 
 
 
+// NOTE(Joey): we already do Hadamard product im multiplication operator, but these are for readability
+inline vector2D Hadamard(vector2D a, vector2D b)
+{
+    return a * b;
+}
+inline vector3D Hadamard(vector3D a, vector3D b)
+{
+    return a * b;
+}
+inline vector4D Hadamard(vector4D a, vector4D b)
+{
+    return a * b;
+}
 
 inline real32 InnerProduct(vector2D a, vector2D b)
 {
     return a.X * b.X + a.Y * b.Y;
 }
+inline real32 InnerProduct(vector3D a, vector3D b)
+{
+    return a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+}
+
 inline real32 LengthSq(vector2D a)
 {
     return InnerProduct(a, a);
@@ -257,10 +286,20 @@ inline real32 Length(vector2D a)
 {
     return SquareRoot(LengthSq(a));
 }
+inline real32 LengthSq(vector3D a)
+{
+    return InnerProduct(a, a);
+}
+inline real32 Length(vector3D a)
+{
+    return SquareRoot(LengthSq(a));
+}
 
 
 
-// rectangle
+// ----------------------------------------------------------------------------
+//      RECTANGLE 2D
+// ----------------------------------------------------------------------------
 struct rectangle2D
 {
     vector2D Min;
@@ -307,12 +346,12 @@ inline rectangle2D RectCenterDim(vector2D center, vector2D dim)
     return RectCenterHalfDim(center, 0.5f*dim);
 }
 
-inline rectangle2D AddRadius(rectangle2D rectangle, real32 radiusWidth, real32 radiusHeight)
+inline rectangle2D AddRadius(rectangle2D rectangle, vector2D radius)
 {
     rectangle2D result;
     
-    result.Min = rectangle.Min - vector2D{ radiusWidth, radiusHeight };
-    result.Max = rectangle.Max + vector2D{ radiusWidth, radiusHeight };
+    result.Min = rectangle.Min - radius;
+    result.Max = rectangle.Max + radius;
     
     return result;
 }
@@ -327,5 +366,75 @@ inline bool32 IsInRectangle(rectangle2D rectangle, vector2D test)
     return true;
 }
 
+// ----------------------------------------------------------------------------
+//      RECTANGLE 3D
+// ----------------------------------------------------------------------------
+struct rectangle3D
+{
+    vector3D Min;
+    vector3D Max;    
+};
+
+inline vector3D GetMinCorner(rectangle3D rectangle)
+{
+    return rectangle.Min;
+}
+
+inline vector3D GetMaxCorner(rectangle3D rectangle)
+{
+    return rectangle.Max;
+}
+
+inline vector3D GetCenter(rectangle3D rectangle)
+{
+    return 0.5f*(rectangle.Min + rectangle.Max);
+}
+
+inline rectangle3D RectMinMax(vector3D min, vector3D max)
+{
+    return { min, max };
+}
+
+inline rectangle3D RectMinDim(vector3D min, vector3D dim)
+{
+    return { min, min + dim };
+}
+
+inline rectangle3D RectCenterHalfDim(vector3D center, vector3D halfDim)
+{
+    rectangle3D result;
+    
+    result.Min = center - halfDim;
+    result.Max = center + halfDim;
+    
+    return result;
+}
+
+inline rectangle3D RectCenterDim(vector3D center, vector3D dim)
+{
+    return RectCenterHalfDim(center, 0.5f*dim);
+}
+
+inline rectangle3D AddRadius(rectangle3D rectangle, vector3D radius)
+{
+    rectangle3D result;
+    
+    result.Min = rectangle.Min - radius;
+    result.Max = rectangle.Max + radius;
+    
+    return result;
+}
+
+inline bool32 IsInRectangle(rectangle3D rectangle, vector3D test)
+{
+    bool32 result = test.X >= rectangle.Min.X &&
+                    test.Y >= rectangle.Min.Y &&
+                    test.X  < rectangle.Max.X &&
+                    test.Y  < rectangle.Max.Y &&
+                    test.Z >= rectangle.Min.Z &&
+                    test.Z  < rectangle.Max.Z;
+    
+    return true;
+}
 
 #endif

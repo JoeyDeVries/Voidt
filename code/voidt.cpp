@@ -692,7 +692,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         else
         {
             controlledPlayer->Acceleration = {};
-            controlledPlayer->dZ = 0.0f;
+            controlledPlayer->Velocity.Z = 0.0f;
             controlledPlayer->AccelerationSword = {};
             if(controller->IsAnalog)
             {
@@ -721,7 +721,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
             
             if(controller->Start.EndedDown)
-                controlledPlayer->dZ = 3.0f;
+                controlledPlayer->Velocity.Z = 3.0f;
             
            
             if(controller->ActionUp.EndedDown)
@@ -744,7 +744,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     uint32 tileSpanX = 17*3;
     uint32 tileSpanY =  9*3;
-    rectangle2D cameraBounds = RectCenterDim(vector2D { 0, 0 }, world->TileSideInMeters*vector2D { (real32)tileSpanX, (real32)tileSpanY });                 
+    uint32 tileSpanZ = 1;
+    rectangle3D cameraBounds = RectCenterDim(vector3D { 0, 0, 0 }, world->TileSideInMeters*vector3D { (real32)tileSpanX, (real32)tileSpanY, (real32)tileSpanZ });                 
       
       
       
@@ -782,12 +783,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             real32 dt = input->dtPerFrame;
                      
              
-            real32 alpha = 1.0f - entity->Z;
+            real32 alpha = 1.0f - entity->Position.Z;
             if(alpha < 0)
                 alpha = 0.0f;                           
             
             move_spec moveSpec = DefaultMoveSpec();
-            vector2D acceleration = {};
+            vector3D acceleration = {};
             
             hero_bitmaps *heroBitmaps = &gameState->HeroBitmaps[entity->FacingDirection];
             
@@ -801,14 +802,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         controlled_player *controlledPlayer = gameState->ControlledPlayers + controllerIndex;
                         if(entity->StorageIndex == controlledPlayer->EntityIndex)
                         {
-                            if(controlledPlayer->dZ != 0.0f)
-                                entity->dZ = controlledPlayer->dZ;
+                            if(controlledPlayer->Velocity.Z != 0.0f)
+                                acceleration.Z = controlledPlayer->Velocity.Z;
                             
                             // move_spec moveSpec = DefaultMoveSpec();
                             moveSpec.UnitMaxAccelVector = true;
                             moveSpec.Speed = 50.0f;
                             moveSpec.Drag = 8.0f;
-                            acceleration = controlledPlayer->Acceleration;    
+                            acceleration = vector3D{ controlledPlayer->Acceleration.X, controlledPlayer->Acceleration.Y , 0.0f};    
                             
                             
                             if(controlledPlayer->AccelerationSword.X != 0.0f || controlledPlayer->AccelerationSword.Y != 0.0f)
@@ -817,7 +818,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                 if(sword && IsSet(sword, ENTITY_FLAG_NONSPATIAL))
                                 {
                                     sword->DistanceLimit = 5.0f;
-                                    MakeEntitySpatial(sword, entity->Position,  entity->Velocity + 5.0f*controlledPlayer->AccelerationSword);
+                                    MakeEntitySpatial(sword, entity->Position,  entity->Velocity + 5.0f*vector3D{controlledPlayer->AccelerationSword.X, controlledPlayer->AccelerationSword.Y, 0.0f});
                                     AddCollisionRule(gameState, sword->StorageIndex, entity->StorageIndex, false);
                                 }
                             }
@@ -848,9 +849,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     moveSpec.UnitMaxAccelVector = false;
                     moveSpec.Speed = 0.0f;
                     moveSpec.Drag = 0.0f;
-
-                    vector2D oldPos = entity->Position;
-                    // real32 distanceTraveled = Length(entity->Position - oldPos);
 
                     // entity->DistanceRemaining -= distanceTraveled;
                     if(entity->DistanceLimit == 0.0f)
@@ -915,7 +913,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             
             real32 entityGroundPointX = screenCenter.X + MetersToPixels*entity->Position.X;
             real32 entityGroundPointY = screenCenter.Y - MetersToPixels*entity->Position.Y;
-            real32 Z = -MetersToPixels*entity->Z; 
+            real32 Z = -MetersToPixels*entity->Position.Z; 
             
             for(uint32 pieceIndex = 0; pieceIndex < pieceGroup.PieceCount; ++pieceIndex)
             {

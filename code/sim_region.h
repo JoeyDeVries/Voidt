@@ -61,13 +61,13 @@ struct sim_entity
     entity_type Type;
     uint32 Flags;
     
-    vector2D Position;  // relative to camera
-    vector2D Velocity;
-    uint32 ChunkZ;
+    vector3D Position;  // relative to camera
+    vector3D Velocity;
+    // uint32 ChunkZ;
     // 
     
-    real32 Z;
-    real32 dZ;
+    // real32 Z;
+    // real32 dZ;
     
     real32 DistanceLimit;
        
@@ -99,8 +99,8 @@ struct sim_region
     game_world *World;
     
     world_position Origin;
-    rectangle2D Bounds;
-    rectangle2D UpdateBounds;
+    rectangle3D Bounds;
+    rectangle3D UpdateBounds;
     
     uint32 MaxEntityCount;
     uint32 EntityCount;

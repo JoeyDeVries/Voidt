@@ -22,37 +22,39 @@ inline bool32 IsValid(world_position pos)
     return pos.ChunkX != WORLD_CHUNK_UNINITIALIZED;
 }
 
-inline bool32 IsCanonical(game_world *world, real32 rel)
+inline bool32 IsCanonical(real32 chunkDim, real32 rel)
 {
     float epsilon = 0.0001f;
-    bool32 result = rel >= -0.5f*world->ChunkSideInMeters - epsilon && rel <=  0.5f*world->ChunkSideInMeters + epsilon;
+    bool32 result = rel >= -0.5f*chunkDim- epsilon && rel <=  0.5f*chunkDim+ epsilon;
     return result;
 }
 
-inline bool32 IsCanonical(game_world *world, vector2D offset)
+inline bool32 IsCanonical(game_world *world, vector3D offset)
 {
-    bool32 result = IsCanonical(world, offset.X) && IsCanonical(world, offset.Y);
+    bool32 result = IsCanonical(world->ChunkDimInMeters.X, offset.X) && 
+                    IsCanonical(world->ChunkDimInMeters.Y, offset.Y) &&
+                    IsCanonical(world->ChunkDimInMeters.Z, offset.Z);
     return result;
 }
 
 
-internal void CorrectChunkCoord(game_world *world, int32 *tile, real32 *tileRel)
+internal void CorrectChunkCoord(real32 chunkDim, int32 *tile, real32 *tileRel)
 {
-    int32 tileOverflow = RoundReal32ToInt32(*tileRel / world->ChunkSideInMeters);
+    int32 tileOverflow = RoundReal32ToInt32(*tileRel / chunkDim);
     *tile    += tileOverflow;
-    *tileRel -= tileOverflow*world->ChunkSideInMeters;
+    *tileRel -= tileOverflow*chunkDim;
     
-    Assert(IsCanonical(world, *tileRel));
-   
+    Assert(IsCanonical(chunkDim, *tileRel));   
 }
 
-internal world_position MapIntoChunkSpace(game_world *world, world_position basePos, vector2D offset)
+internal world_position MapIntoChunkSpace(game_world *world, world_position basePos, vector3D offset)
 {    
     world_position result = basePos;
     
     result.Offset += offset;
-    CorrectChunkCoord(world, &result.ChunkX, &result.Offset.X);
-    CorrectChunkCoord(world, &result.ChunkY, &result.Offset.Y);
+    CorrectChunkCoord(world->ChunkDimInMeters.X, &result.ChunkX, &result.Offset.X);
+    CorrectChunkCoord(world->ChunkDimInMeters.X, &result.ChunkY, &result.Offset.Y);
+    CorrectChunkCoord(world->ChunkDimInMeters.Z, &result.ChunkZ, &result.Offset.Z);
     
     return result;
 }
@@ -118,31 +120,33 @@ inline world_chunk* GetWorldChunk(game_world* world, int32 chunkX, int32 chunkY,
 
 inline world_position ChunkPositionFromTilePosition(game_world *world, int32 absTileX, int32 absTileY, int32 absTileZ)
 {
-    world_position result = {};
+    world_position basePos = {};
+    // result.ChunkX = absTileX / TILES_PER_CHUNK;
+    // result.ChunkY = absTileY / TILES_PER_CHUNK;
+    // result.ChunkZ = absTileZ;
     
-    result.ChunkX = absTileX / TILES_PER_CHUNK;
-    result.ChunkY = absTileY / TILES_PER_CHUNK;
-    result.ChunkZ = absTileZ;
+    vector3D offset = Hadamard(world->ChunkDimInMeters, { (real32)absTileX, (real32)absTileY, (real32)absTileZ });
+    world_position result = MapIntoChunkSpace(world, basePos, offset);
     
-    result.Offset.X = (real32)((absTileX - TILES_PER_CHUNK/2) - (result.ChunkX * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
-    result.Offset.Y = (real32)((absTileY - TILES_PER_CHUNK/2)- (result.ChunkY * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
+    // result.Offset.X = (real32)((absTileX - TILES_PER_CHUNK/2) - (result.ChunkX * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
+    // result.Offset.Y = (real32)((absTileY - TILES_PER_CHUNK/2)- (result.ChunkY * (real32)TILES_PER_CHUNK)) * world->TileSideInMeters;
+    // result.Offset.Z = 0.0f;
     
     Assert(IsCanonical(world, result.Offset));
     
     return result;
 }
 
-world_difference Subtract(game_world *world, world_position *a, world_position *b)
+vector3D Subtract(game_world *world, world_position *a, world_position *b)
 {
-    world_difference result;
+    vector3D dChunk = {(real32)a->ChunkX - (real32)b->ChunkX,   
+                       (real32)a->ChunkY - (real32)b->ChunkY,
+                       (real32)a->ChunkZ - (real32)b->ChunkZ };
     
-    real32 dChunkX = (real32)a->ChunkX - (real32)b->ChunkX;
-    real32 dChunkY = (real32)a->ChunkY - (real32)b->ChunkY;
-    real32 dChunkZ = (real32)a->ChunkZ - (real32)b->ChunkZ;
-    
-    result.dX = world->ChunkSideInMeters*dChunkX + (a->Offset.X - b->Offset.X);
-    result.dY = world->ChunkSideInMeters*dChunkY + (a->Offset.Y - b->Offset.Y);
-    result.dZ = world->ChunkSideInMeters*dChunkZ;
+    vector3D result = Hadamard(world->ChunkDimInMeters, dChunk) + (a->Offset - b->Offset);
+    // result.X = world->ChunkSideInMeters*dChunkX + (a->Offset.X - b->Offset.X);
+    // result.Y = world->ChunkSideInMeters*dChunkY + (a->Offset.Y - b->Offset.Y);
+    // result.Z = world->ChunkSideInMeters*dChunkZ;
     
     return result;
 }
@@ -162,7 +166,10 @@ CenteredChunkPoint(uint32 chunkX, uint32 chunkY, uint32 chunkZ)
 internal void InitializeWorld(game_world *world, real32 tileSideInMeters)
 {
     world->TileSideInMeters = tileSideInMeters;
-    world->ChunkSideInMeters = (real32)TILES_PER_CHUNK*tileSideInMeters;
+    world->TileDepthInMeters = tileSideInMeters;
+    world->ChunkDimInMeters = {(real32)TILES_PER_CHUNK*tileSideInMeters,
+                               (real32)TILES_PER_CHUNK*tileSideInMeters,
+                               (real32)tileSideInMeters };
     world->FirstFree = 0;
     
     for(uint32 chunkIndex = 0; chunkIndex < ArrayCount(world->ChunkHash); ++chunkIndex)

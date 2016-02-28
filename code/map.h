@@ -17,20 +17,13 @@ const int32 WORLD_CHUNK_SAFE_MARGIN = (INT32_MAX/64);
 const int32 TILES_PER_CHUNK = 16;
 #define WORLD_CHUNK_UNINITIALIZED INT32_MAX
 
-struct world_difference
-{
-    real32 dX;
-    real32 dY;
-    real32 dZ;        
-};
-
 struct world_position
 {
     int32 ChunkX; // virtual page system (first 28 bits tileMapIndex, last 4 bits tileX)
     int32 ChunkY;
     int32 ChunkZ;
     
-    vector2D Offset;
+    vector3D Offset;
 };
 
 struct world_entity_block
@@ -52,7 +45,9 @@ struct world_chunk
 struct game_world
 {
     real32 TileSideInMeters;
-    real32 ChunkSideInMeters;
+    real32 TileDepthInMeters;
+   
+    vector3D ChunkDimInMeters;
     
     world_entity_block *FirstFree;
 

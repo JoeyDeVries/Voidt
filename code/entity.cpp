@@ -38,7 +38,7 @@ inline void MakeEntityNonSpatial(sim_entity *entity)
     entity->Position = INVALID_POS;
 }
 
-inline void MakeEntitySpatial(sim_entity *entity, vector2D pos, vector2D velocity)
+inline void MakeEntitySpatial(sim_entity *entity, vector3D pos, vector3D velocity)
 {
     ClearFlag(entity, ENTITY_FLAG_NONSPATIAL);
     entity->Position = pos;
