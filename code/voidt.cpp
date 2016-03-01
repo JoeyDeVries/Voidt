@@ -281,6 +281,21 @@ internal add_low_entity_result AddWall(game_state *gameState, uint32 absTileX, u
     return entity;
 }
 
+internal add_low_entity_result AddStair(game_state *gameState, uint32 absTileX, uint32 absTileY, uint32 absTileZ)
+{
+    world_position pos = ChunkPositionFromTilePosition(gameState->World, absTileX, absTileY, absTileZ);
+    
+    add_low_entity_result entity = AddLowEntity(gameState, ENTITY_TYPE_STAIRWELL, pos); 
+   
+    entity.Low->Sim.Size.X = gameState->World->TileSideInMeters;
+    entity.Low->Sim.Size.Y  = gameState->World->TileSideInMeters;
+    entity.Low->Sim.Size.Z = gameState->World->TileDepthInMeters;
+    // SetFlag(&entity.Low->Sim, ENTITY_FLAG_COLLIDES);
+    
+    return entity;
+}
+
+
 internal void InitHitPoints(low_entity *lowEntity, uint32 hitPointCount)
 {
     Assert(hitPointCount <= ArrayCount(lowEntity->Sim.HitPoint));
@@ -500,6 +515,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         gameState->Shadow = DEBUGLoadBMP(thread, memory->DEBUGPlatformReadEntireFile, "test/test_hero_shadow.bmp");
         gameState->Tree = DEBUGLoadBMP(thread, memory->DEBUGPlatformReadEntireFile, "test2/tree00.bmp");
         gameState->Sword = DEBUGLoadBMP(thread, memory->DEBUGPlatformReadEntireFile, "test2/rock03.bmp");
+        gameState->Stairwell = DEBUGLoadBMP(thread, memory->DEBUGPlatformReadEntireFile, "test2/rock02.bmp");
+        // gameState->StairUp = DEBUGLoadBMP(thread, memory->DEBUGPlatformReadEntireFile, "test2/rock01.bmp");
+        // gameState->StairDown = DEBUGLoadBMP(thread, memory->DEBUGPlatformReadEntireFile, "test2/rock02.bmp");
         
         gameState->HeroBitmaps[0].Head = DEBUGLoadBMP(thread, memory->DEBUGPlatformReadEntireFile, "test/test_hero_right_head.bmp");
         gameState->HeroBitmaps[0].Torso = DEBUGLoadBMP(thread, memory->DEBUGPlatformReadEntireFile, "test/test_hero_right_torso.bmp");
@@ -551,10 +569,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         for(uint32 screenIndex = 0; screenIndex < 2000; ++screenIndex)
         {
             uint32 randomChoice = 0;
-            // if(doorUp || doorDown)
+            if(doorUp || doorDown)
                 randomChoice = (885447 * screenIndex + (screenIndex + 7) * 7637 / 937) % 2;
-            // else
-                // randomChoice = (885447 * screenIndex + (screenIndex + 7) * 7637 / 937) % 3;
+            else
+                randomChoice = (885447 * screenIndex + (screenIndex + 7) * 7637 / 937) % 3;
 
             bool createdZDoor = false;
             if(randomChoice == 2)
@@ -578,38 +596,35 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     uint32 absTileX = screenX*tilesPerWidth + tileX;
                     uint32 absTileY = screenY*tilesPerHeight + tileY;
                     
-                    uint32 tileValue = 1;
+                    bool shouldBeWall = false;
                     if((tileX == 0) && (!doorLeft || (tileY != (tilesPerHeight / 2))))
                     {
-                        tileValue = 2;
+                        shouldBeWall = true;
                     }
                     if((tileX == (tilesPerWidth - 1)) && (!doorRight || (tileY != (tilesPerHeight / 2))))
                     {
-                        tileValue = 2;
+                        shouldBeWall = true;
                     }
                     if((tileY == 0) && (!doorBottom || (tileX != (tilesPerWidth / 2))))
                     {
-                        tileValue = 2;
+                        shouldBeWall = true;
                     }
                     if((tileY == (tilesPerHeight - 1)) && (!doorTop || (tileX != (tilesPerWidth / 2))))
                     {
-                        tileValue = 2;
+                        shouldBeWall = true;
                     }
                     
-                    if((tileX == 10) && (tileY == 6))
+                    if(shouldBeWall)
                     {
-                        if(doorUp) 
-                        {
-                            tileValue = 3;
-                        }
-                        if(doorDown)
-                        {
-                            tileValue = 4;
-                        }
-                    }                      
-
-                    if(tileValue == 2)
                         AddWall(gameState, absTileX, absTileY, absTileZ);
+                    }
+                    else if(createdZDoor)
+                    {
+                        if((tileX == 10) && (tileY == 6))
+                        {
+                            AddStair(gameState, absTileX, absTileY, doorDown ? absTileZ - 1 : absTileZ);      
+                        }                      
+                    }
                 }
             }
             
@@ -664,7 +679,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                      cameraTileZ);
         gameState->CameraPos = newCameraPos;
         
-        AddMonster(gameState, cameraTileX + 2, cameraTileY + 2, cameraTileZ);
+        AddMonster(gameState, cameraTileX - 3, cameraTileY + 2, cameraTileZ);
         AddFamiliar(gameState, cameraTileX - 2, cameraTileY + 2, cameraTileZ);
         
         
@@ -842,8 +857,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 case ENTITY_TYPE_WALL:
                 {
                     PushBitmap(&pieceGroup, &gameState->Tree, { 0, 0 }, 0, { 40, 80 });
-                    // DrawRectangle(screenBuffer, { playerLeft, playerTop }, { playerLeft + MetersToPixels*lowEntity->Sim.Width, playerTop + MetersToPixels*lowEntity->Sim.Height}, playerR, playerG, playerB);
-                } break;     
+                } break;    
+                case ENTITY_TYPE_STAIRWELL:
+                {
+                    PushBitmap(&pieceGroup, &gameState->Stairwell, { 0, 0 }, 0, { 37, 37 });
+                } break;                     
                 case ENTITY_TYPE_SWORD:            
                 {
                     moveSpec.UnitMaxAccelVector = false;

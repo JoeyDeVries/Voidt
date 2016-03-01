@@ -164,6 +164,7 @@ struct game_state
     loaded_bitmap BackDrop;
     loaded_bitmap Shadow;
     loaded_bitmap Sword;
+    loaded_bitmap Stairwell;
     hero_bitmaps HeroBitmaps[4];
     
     loaded_bitmap Tree;

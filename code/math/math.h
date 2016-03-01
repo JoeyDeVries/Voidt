@@ -437,4 +437,13 @@ inline bool32 IsInRectangle(rectangle3D rectangle, vector3D test)
     return true;
 }
 
+inline bool32 RectanglesIntersect(rectangle3D a, rectangle3D b)
+{
+    // NOTE(Joey): AABB intersection check on basis of individual axis
+    bool32 result = !((b.Max.X < a.Min.X || b.Min.X > a.Max.X) ||
+                      (b.Max.Y < a.Min.Y || b.Min.Y > a.Max.Y) ||
+                      (b.Max.Z < a.Min.Z || b.Min.Z > a.Max.Z));
+    return result;
+}
+
 #endif
