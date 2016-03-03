@@ -446,4 +446,39 @@ inline bool32 RectanglesIntersect(rectangle3D a, rectangle3D b)
     return result;
 }
 
+inline vector3D GetBaryCentric(rectangle3D rect, vector3D pos)
+{
+    return (pos - rect.Min) / length((rect.Max - rect.Minx));
+}
+
+// ----------------------------------------------------------------------------
+//      COMMON
+// ----------------------------------------------------------------------------
+
+inline real32 Clamp(real32 min, real32 max, real32 value)
+{
+    real32 result = value;    
+    if(result < min) result = min;
+    if(result > max) result = max;
+}
+
+inline real32 Clamp01(real32 value)
+{
+    real32 result = Clamp(0.0f, 1.0f, value);
+    return result;
+}
+inline vector3D Clamp01(vector3D value)
+{
+    vector3D result;    
+    result.X = Clamp01(value.X);
+    result.Y = Clamp01(value.Y);
+    result.Z = Clamp01(value.Z);
+    return result;
+}
+
+inline real32 lerp(real32 a, real32 b, real32 t)
+{
+    return (1.0f - t)*a + t*b; 
+}
+
 #endif
