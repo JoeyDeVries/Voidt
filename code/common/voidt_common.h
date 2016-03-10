@@ -64,5 +64,4 @@ typedef double real64;
 
 #define ArrayCount(array) (sizeof(array) / sizeof((array)[0]))
 
-
 #endif

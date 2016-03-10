@@ -36,7 +36,7 @@ inline real32 Clamp01(real32 value)
     return result;
 }
 
-inline real32 lerp(real32 a, real32 b, real32 t)
+inline real32 Lerp(real32 a, real32 b, real32 t)
 {
     return (1.0f - t)*a + t*b; 
 }

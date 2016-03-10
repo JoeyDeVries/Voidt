@@ -20,6 +20,9 @@
 #include "sim_region.h"
 #include "entity.h"
 
+#include "common/random.h"
+#include "common/random.cpp"
+
 
 inline game_controller_input* GetController(game_input *input, uint32 controllerIndex)
 {
