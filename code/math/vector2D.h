@@ -12,6 +12,7 @@
 #ifndef VECTOR2D_H
 #define VECTOR2D_H
 
+// TODO(Joey): change floats to lowercase .x and .y due to HLSL/GLSL compatibility.
 union vector2D
 {
     struct 

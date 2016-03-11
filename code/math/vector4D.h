@@ -12,6 +12,8 @@
 #ifndef VECTOR4D_H
 #define VECTOR4D_H
 
+
+// TODO(Joey): change floats to lowercase .x and .y due to HLSL/GLSL compatibility.
 union vector4D
 {
     struct 

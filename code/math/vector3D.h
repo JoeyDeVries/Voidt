@@ -12,6 +12,8 @@
 #ifndef VECTOR3D_H
 #define VECTOR3D_H
 
+
+// TODO(Joey): change floats to lowercase .x and .y due to HLSL/GLSL compatibility.
 union vector3D
 {
     struct 
