@@ -106,4 +106,9 @@ inline real32 Length(vector2D a)
     return SquareRoot(LengthSq(a));
 }
 
+inline vector2D Perpendicular(vector2D a)
+{
+    return { -a.Y, a.X };
+}
+
 #endif  

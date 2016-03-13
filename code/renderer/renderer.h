@@ -12,5 +12,7 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include "texture.h"
+
 
 #endif
