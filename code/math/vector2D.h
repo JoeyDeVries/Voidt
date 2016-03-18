@@ -118,4 +118,12 @@ inline vector2D Normalize(vector2D a)
     return result;
 }
 
+inline vector2D Lerp(vector2D a, vector2D b, real32 t)
+{
+    vector2D result;
+    result.x = Lerp(a.x, b.x, t);
+    result.y = Lerp(a.y, b.y, t);
+    return result;
+}
+
 #endif  

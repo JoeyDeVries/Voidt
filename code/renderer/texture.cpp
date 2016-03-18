@@ -10,6 +10,15 @@
 ** option) any later version.
 *******************************************************************/
 
+inline vector4D TexelToVector4D(uint32 *texel)
+{
+    vector4D color = { (real32)((*texel >> 16) & 0xFF), 
+                       (real32)((*texel >> 8) & 0xFF),
+                       (real32)((*texel >> 0) & 0xFF),
+                       (real32)((*texel >> 24) & 0xFF) / 255.0f };     
+    return color;
+}
+
 // TODO(Joey): work out overall engine structure before implementing details
 // TODO(Joey): work out wrapping modes w/ uv coordinates out of bound
 internal vector4D TextureSample(Texture *texture, vector2D uv, bool32 bilinear = true)
@@ -36,13 +45,12 @@ internal vector4D TextureSample(Texture *texture, vector2D uv, bool32 bilinear =
     
     // 1. Transform UV data to bitmap space
     // 2. Sample from texture bitmap
-    // 3. Also sample from neighbouring texels and do bilinear filtering if enabled
-    // 4. Convert color data back to rgba vector and return
-    
+    // 3. If bilinear sampling is enabled: similarly sample from neighbouring texels
+
     // NOTE(Joey): scale UV to texture size
     uv.x = Clamp01(uv.x);
     uv.y = Clamp01(uv.y);
-    uv = Hadamard(uv, { (real32)texture->Width - 1, (real32)texture->Height - 1});
+    uv = Hadamard(uv, { (real32)texture->Width - 2, (real32)texture->Height - 2});
 
     // NOTE(Joey): transform to texture sampling data
     uint32 X = (uint32)uv.x;
@@ -50,17 +58,22 @@ internal vector4D TextureSample(Texture *texture, vector2D uv, bool32 bilinear =
     real32 dX = uv.x - X;
     real32 dY = uv.y - Y;     
     
-    // NOTE(Joey): sample from texture
-    uint32 *texel = (uint32*)((uint8*)texture->Texels + Y*texture->Pitch + X*sizeof(uint32));
+    Assert(X >= 0 && X <= texture->Width);
+    Assert(Y >= 0 && Y <= texture->Height);
     
-    vector4D color = { (real32)((*texel >> 16) & 0xFF), 
-                       (real32)((*texel >> 8) & 0xFF),
-                       (real32)((*texel >> 0) & 0xFF),
-                       (real32)((*texel >> 24) & 0xFF) / 255.0f };         
+    // NOTE(Joey): sample from texture
+    uint32 *texel00 = (uint32*)((uint8*)texture->Texels + Y*texture->Pitch + X*sizeof(uint32));           
+    vector4D color = TexelToVector4D(texel00);       
     
     if(bilinear)
     {   // lerp between multiple samples given dX and dY
+        uint32 *texel10 = texel00 + 1;
+        uint32 *texel01 = texel00 + (texture->Pitch/sizeof(uint32));
+        uint32 *texel11 = texel01 + 1;
         
+        vector4D horizontalLerpTop    = Lerp(TexelToVector4D(texel00), TexelToVector4D(texel10), dX);
+        vector4D horizontalLerpBottom = Lerp(TexelToVector4D(texel01), TexelToVector4D(texel11), dX);
+        color = Lerp(horizontalLerpTop, horizontalLerpBottom, dY);
     }
     
     return color;
@@ -122,17 +135,11 @@ internal Texture LoadTexture(thread_context *thread, debug_platform_read_entire_
             for(uint32 x = 0; x < result.Width; ++x)
             {
                 uint32 C = *sourceDest;
-#if 0                
-                *sourceDest++ = (((C >> alphaShift) & 0xFF) << 24) | 
-                                (((C >> redShift  ) & 0xFF) << 16) | 
-                                (((C >> greenShift) & 0xFF) << 8)  | 
-                                (((C >> blueShift ) & 0xFF) << 0); 
-#else
+
                 *sourceDest++ = (RotateLeft(C & redMask, redShift) |
                                  RotateLeft(C & greenMask, greenShift) |
                                  RotateLeft(C & blueMask, blueShift) |
                                  RotateLeft(C & alphaMask, alphaShift));
-#endif
             }            
         }
     }

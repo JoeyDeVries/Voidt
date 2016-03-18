@@ -89,4 +89,14 @@ inline vector4D Hadamard(vector4D a, vector4D b)
     return a * b;
 }
 
+inline vector4D Lerp(vector4D a, vector4D b, real32 t)
+{
+    vector4D result;
+    result.x = Lerp(a.x, b.x, t);
+    result.y = Lerp(a.y, b.y, t);
+    result.z = Lerp(a.z, b.z, t);
+    result.w = Lerp(a.w, b.w, t);
+    return result;
+}
+
 #endif  

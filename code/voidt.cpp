@@ -283,7 +283,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
             
             if(controller->Start.EndedDown)
-                controlledPlayer->Velocity.z = 3.0f;
+            {
+                controlledPlayer->Velocity.z = 3.0f;                
+            }
             
            
             if(controller->ActionUp.EndedDown)

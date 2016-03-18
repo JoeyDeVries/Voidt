@@ -122,4 +122,13 @@ inline vector3D Clamp01(vector3D value)
     return result;
 }
 
+inline vector3D Lerp(vector3D a, vector3D b, real32 t)
+{
+    vector3D result;
+    result.x = Lerp(a.x, b.x, t);
+    result.y = Lerp(a.y, b.y, t);
+    result.z = Lerp(a.z, b.z, t);
+    return result;
+}
+
 #endif  
