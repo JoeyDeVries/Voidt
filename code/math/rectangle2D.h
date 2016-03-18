@@ -73,10 +73,10 @@ inline rectangle2D AddRadius(rectangle2D rectangle, vector2D radius)
 
 inline bool32 IsInRectangle(rectangle2D rectangle, vector2D test)
 {
-    bool32 result = test.X >= rectangle.Min.X &&
-                    test.Y >= rectangle.Min.Y &&
-                    test.X  < rectangle.Max.X &&
-                    test.Y  < rectangle.Max.Y;
+    bool32 result = test.x >= rectangle.Min.x &&
+                    test.y >= rectangle.Min.y &&
+                    test.x  < rectangle.Max.x &&
+                    test.y  < rectangle.Max.y;
     
     return true;
 }

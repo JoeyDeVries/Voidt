@@ -346,7 +346,7 @@ internal void Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int width, i
     
 	Buffer->Info.bmiHeader.biSize = sizeof(Buffer->Info.bmiHeader);
 	Buffer->Info.bmiHeader.biWidth = Buffer->Width;
-	Buffer->Info.bmiHeader.biHeight = -Buffer->Height; // negative biHeight sets bitmap origin to top-left corner
+	Buffer->Info.bmiHeader.biHeight = Buffer->Height; // negative biHeight sets bitmap origin to top-left corner; default bottom-left
 	Buffer->Info.bmiHeader.biPlanes = 1;
 	Buffer->Info.bmiHeader.biBitCount = 32;
 	Buffer->Info.bmiHeader.biCompression = BI_RGB;
@@ -374,8 +374,8 @@ internal void Win32DisplayBufferInWindow(HDC device, win32_offscreen_buffer *Buf
     }
     else
     {        
-        int offsetX = 10;
-        int offsetY = 10;
+        int offsetX = 0;
+        int offsetY = 0;
 
         // copies from one rectangle to the other, possibly stretching
         StretchDIBits(device, 
@@ -825,6 +825,7 @@ int CALLBACK WinMain(
     
 	if(RegisterClass(&WindowClass))
 	{
+        // NOTE(Joey): calculate client size of window and pass to window creation routine        
 		HWND Window = CreateWindowEx(
 			0, //WS_EX_TOPMOST|WS_EX_LAYERED,
 			WindowClass.lpszClassName,
@@ -832,8 +833,8 @@ int CALLBACK WinMain(
 			WS_OVERLAPPEDWINDOW | WS_VISIBLE,
 			CW_USEDEFAULT,
 			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
+			960 + 13,
+			540 + 35,
 			0,
 			0,
 			instance,
@@ -1034,9 +1035,7 @@ int CALLBACK WinMain(
                     buffer.Memory = GlobalBackBuffer.Memory;
                     buffer.Width  = (uint16)GlobalBackBuffer.Width;
                     buffer.Height = (uint16)GlobalBackBuffer.Height;
-                    buffer.Pitch  = GlobalBackBuffer.Pitch;
-                    buffer.BytesPerPixel = GlobalBackBuffer.BytesPerPixel;
-                    
+                    buffer.Pitch  = GlobalBackBuffer.Pitch;                    
                     
                     // record/re-play user input for debug sessions
                     if(win32State.InputRecordingIndex)

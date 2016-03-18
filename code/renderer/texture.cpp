@@ -12,7 +12,7 @@
 
 // TODO(Joey): work out overall engine structure before implementing details
 // TODO(Joey): work out wrapping modes w/ uv coordinates out of bound
-internal uint32 TextureSample(Texture *texture, vector2D uv, bool32 bilinear = true)
+internal vector4D TextureSample(Texture *texture, vector2D uv, bool32 bilinear = true)
 {
     // SEE https://hero.handmadedev.org/videos/game-architecture/day093.html for implementation.    
     /* NOTE(Joey): How texture sampling works:
@@ -34,12 +34,36 @@ internal uint32 TextureSample(Texture *texture, vector2D uv, bool32 bilinear = t
       The color is returned as 4 color bytes.    
     */
     
-    // 1. Cast UV to int
+    // 1. Transform UV data to bitmap space
     // 2. Sample from texture bitmap
     // 3. Also sample from neighbouring texels and do bilinear filtering if enabled
-    // 4. Convert color data to ARGB uint32 and return
+    // 4. Convert color data back to rgba vector and return
     
-    return 0;
+    // NOTE(Joey): scale UV to texture size
+    uv.x = Clamp01(uv.x);
+    uv.y = Clamp01(uv.y);
+    uv = Hadamard(uv, { (real32)texture->Width - 1, (real32)texture->Height - 1});
+
+    // NOTE(Joey): transform to texture sampling data
+    uint32 X = (uint32)uv.x;
+    uint32 Y = (uint32)uv.y;
+    real32 dX = uv.x - X;
+    real32 dY = uv.y - Y;     
+    
+    // NOTE(Joey): sample from texture
+    uint32 *texel = (uint32*)((uint8*)texture->Texels + Y*texture->Pitch + X*sizeof(uint32));
+    
+    vector4D color = { (real32)((*texel >> 16) & 0xFF), 
+                       (real32)((*texel >> 8) & 0xFF),
+                       (real32)((*texel >> 0) & 0xFF),
+                       (real32)((*texel >> 24) & 0xFF) / 255.0f };         
+    
+    if(bilinear)
+    {   // lerp between multiple samples given dX and dY
+        
+    }
+    
+    return color;
 }
 
 
@@ -56,10 +80,11 @@ internal Texture LoadTexture(thread_context *thread, debug_platform_read_entire_
         bitmap_header *header = (bitmap_header *)readResult.Contents;
         uint32 *pixels = (uint32*)((uint8*)readResult.Contents + header->BitmapOffset);
         result.Texels = pixels;
-        result.Width= header->Width;
+        result.Width  = header->Width;
         result.Height = header->Height;
         
-        Assert(header->Compression == 3);
+
+        //Assert(header->Compression == 3);
         
         // NOTE(Joey): byte order in memory is AA BB GG RR (AA first in lowest memory address), bottom upper_bound
         // CPU reads it in as: RR GG BB AA (first reads AA, then BB)
@@ -90,6 +115,7 @@ internal Texture LoadTexture(thread_context *thread, debug_platform_read_entire_
         blueShift = 0 - (int32)blueShift;
         alphaShift = 24 - (int32)alphaShift;
         
+        result.Pitch = result.Width*sizeof(uint32);
         uint32 *sourceDest = pixels;
         for(uint32 y = 0; y < result.Height; ++y)
         {

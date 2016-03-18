@@ -18,26 +18,26 @@ union vector3D
 {
     struct 
     { 
-        real32 X;
-        real32 Y; 
-        real32 Z; 
+        real32 x;
+        real32 y; 
+        real32 z; 
     };
     struct 
     { 
-        real32 R;
-        real32 G; 
-        real32 B; 
+        real32 r;
+        real32 g; 
+        real32 b; 
     };
     // swizzling 
     struct
     {
-        vector2D XY;
+        vector2D xy;
         real32 _ignored;
     };
     struct
     {
         real32 _ignored;
-        vector2D YZ;
+        vector2D yz;
     };
     real32 E[3];
 };
@@ -46,11 +46,11 @@ union vector3D
 // *
 inline vector3D operator*(vector3D a, vector3D b)
 {
-    return { a.X * b.X, a.Y * b.Y, a.Z * b.Z };
+    return { a.x * b.x, a.y * b.y, a.z * b.z };
 }
 inline vector3D operator*(vector3D a, real32 b)
 {
-    return { a.X * b, a.Y * b, a.Z * b };    
+    return { a.x * b, a.y * b, a.z * b };    
 }
 inline vector3D operator*(real32 b, vector3D a)
 {
@@ -60,18 +60,18 @@ inline vector3D operator*(real32 b, vector3D a)
 // +
 inline vector3D operator+(vector3D a, vector3D b)
 {
-    return { a.X + b.X, a.Y + b.Y, a.Z + b.Z };
+    return { a.x + b.x, a.y + b.y, a.z + b.z };
 }
 // -
 inline vector3D operator-(vector3D a, vector3D b)
 {
-    return { a.X - b.X, a.Y - b.Y, a.Z - b.Z };
+    return { a.x - b.x, a.y - b.y, a.z - b.z };
 }
 
 // -negate
 inline vector3D operator-(vector3D a)
 {
-    return { -a.X, -a.Y, -a.Z };
+    return { -a.x, -a.y, -a.z };
 }
 
 // *=
@@ -101,7 +101,7 @@ inline vector3D Hadamard(vector3D a, vector3D b)
 
 inline real32 InnerProduct(vector3D a, vector3D b)
 {
-    return a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+    return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 inline real32 LengthSq(vector3D a)
@@ -116,9 +116,9 @@ inline real32 Length(vector3D a)
 inline vector3D Clamp01(vector3D value)
 {
     vector3D result;    
-    result.X = Clamp01(value.X);
-    result.Y = Clamp01(value.Y);
-    result.Z = Clamp01(value.Z);
+    result.x = Clamp01(value.x);
+    result.y = Clamp01(value.y);
+    result.z = Clamp01(value.z);
     return result;
 }
 

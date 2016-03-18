@@ -28,6 +28,7 @@ inline real32 Clamp(real32 min, real32 max, real32 value)
     real32 result = value;    
     if(result < min) result = min;
     if(result > max) result = max;
+    return result;
 }
 
 inline real32 Clamp01(real32 value)

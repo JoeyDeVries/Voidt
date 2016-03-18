@@ -10,3 +10,4 @@
 ** option) any later version.
 *******************************************************************/
 #include "texture.cpp"
+#include "render_primitives.cpp"

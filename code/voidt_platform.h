@@ -67,7 +67,6 @@ struct game_offscreen_buffer
     uint16  Width;
     uint16  Height;
     uint32  Pitch;
-    uint32  BytesPerPixel;
 };
 
 // game input state 

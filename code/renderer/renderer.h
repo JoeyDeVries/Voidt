@@ -13,6 +13,7 @@
 #define RENDERER_H
 
 #include "texture.h"
+#include "render_primitives.h"
 
 
 #endif

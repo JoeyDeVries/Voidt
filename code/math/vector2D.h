@@ -17,8 +17,8 @@ union vector2D
 {
     struct 
     { 
-        real32 X;
-        real32 Y; 
+        real32 x;
+        real32 y; 
     };
     real32 E[2];
 };
@@ -26,11 +26,11 @@ union vector2D
 // *
 inline vector2D operator*(vector2D a, vector2D b)
 {
-    return { a.X * b.X, a.Y * b.Y };
+    return { a.x * b.x, a.y * b.y };
 }
 inline vector2D operator*(vector2D a, real32 b)
 {
-    return { a.X * b, a.Y * b };    
+    return { a.x * b, a.y * b };    
 }
 inline vector2D operator*(real32 b, vector2D a)
 {
@@ -40,7 +40,7 @@ inline vector2D operator*(real32 b, vector2D a)
 // +
 inline vector2D operator+(vector2D a, vector2D b)
 {
-    return { a.X + b.X, a.Y + b.Y };
+    return { a.x + b.x, a.y + b.y };
 }
 // NOTE(Joey): scaler vector addition and subtraction isn't really defined, so best to enforce
 // proper vector operations by disabling these 'convenience' operators. Instead of adding a 
@@ -48,7 +48,7 @@ inline vector2D operator+(vector2D a, vector2D b)
 // add or subtract.
 // inline vector2D operator+(vector2D a, real32 b)
 // {
-    // return { a.X + b, a.Y + b }; 
+    // return { a.x + b, a.y + b }; 
 // }
 // inline vector2D operator+(real32 b, vector2D a)
 // {
@@ -58,13 +58,13 @@ inline vector2D operator+(vector2D a, vector2D b)
 // -
 inline vector2D operator-(vector2D a, vector2D b)
 {
-    return { a.X - b.X, a.Y - b.Y };
+    return { a.x - b.x, a.y - b.y };
 }
 
 // -negate
 inline vector2D operator-(vector2D a)
 {
-    return { -a.X, -a.Y };
+    return { -a.x, -a.y };
 }
 
 // *=
@@ -94,7 +94,7 @@ inline vector2D Hadamard(vector2D a, vector2D b)
 
 inline real32 InnerProduct(vector2D a, vector2D b)
 {
-    return a.X * b.X + a.Y * b.Y;
+    return a.x * b.x + a.y * b.y;
 }
 
 inline real32 LengthSq(vector2D a)
@@ -108,7 +108,14 @@ inline real32 Length(vector2D a)
 
 inline vector2D Perpendicular(vector2D a)
 {
-    return { -a.Y, a.X };
+    return { -a.y, a.x };
+}
+
+inline vector2D Normalize(vector2D a)
+{
+    vector2D result;
+    result = a * (1.0f / Length(a));
+    return result;
 }
 
 #endif  

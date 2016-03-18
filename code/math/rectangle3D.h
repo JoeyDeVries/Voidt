@@ -73,12 +73,12 @@ inline rectangle3D AddRadius(rectangle3D rectangle, vector3D radius)
 
 inline bool32 IsInRectangle(rectangle3D rectangle, vector3D test)
 {
-    bool32 result = test.X >= rectangle.Min.X &&
-                    test.Y >= rectangle.Min.Y &&
-                    test.X  < rectangle.Max.X &&
-                    test.Y  < rectangle.Max.Y &&
-                    test.Z >= rectangle.Min.Z &&
-                    test.Z  < rectangle.Max.Z;
+    bool32 result = test.x >= rectangle.Min.x &&
+                    test.y >= rectangle.Min.y &&
+                    test.x  < rectangle.Max.x &&
+                    test.y  < rectangle.Max.y &&
+                    test.z >= rectangle.Min.z &&
+                    test.z  < rectangle.Max.z;
     
     return true;
 }
@@ -86,17 +86,17 @@ inline bool32 IsInRectangle(rectangle3D rectangle, vector3D test)
 inline bool32 RectanglesIntersect(rectangle3D a, rectangle3D b)
 {
     // NOTE(Joey): AABB intersection check on basis of individual axis
-    bool32 result = !((b.Max.X <= a.Min.X || b.Min.X >= a.Max.X) ||
-                      (b.Max.Y <= a.Min.Y || b.Min.Y >= a.Max.Y) ||
-                      (b.Max.Z <= a.Min.Z || b.Min.Z >= a.Max.Z));
+    bool32 result = !((b.Max.x <= a.Min.x || b.Min.x >= a.Max.x) ||
+                      (b.Max.y <= a.Min.y || b.Min.y >= a.Max.y) ||
+                      (b.Max.z <= a.Min.z || b.Min.z >= a.Max.z));
     return result;
 }
 
 inline vector3D GetBaryCentric(rectangle3D rect, vector3D pos)
 {
-    real32 x = (pos.X - rect.Min.X) / Length(rect.Max - rect.Min);
-    real32 y = (pos.Y - rect.Min.Y) / Length(rect.Max - rect.Min);
-    real32 z = (pos.Z - rect.Min.Z) / Length(rect.Max - rect.Min);
+    real32 x = (pos.x - rect.Min.x) / Length(rect.Max - rect.Min);
+    real32 y = (pos.y - rect.Min.y) / Length(rect.Max - rect.Min);
+    real32 z = (pos.z - rect.Min.z) / Length(rect.Max - rect.Min);
     return { x, y, z };
 }
 

@@ -18,17 +18,17 @@ union vector4D
 {
     struct 
     { 
-        real32 X;
-        real32 Y; 
-        real32 Z; 
-        real32 W; 
+        real32 x;
+        real32 y; 
+        real32 z; 
+        real32 w; 
     };
     struct 
     { 
-        real32 R;
-        real32 G; 
-        real32 B; 
-        real32 A; 
+        real32 r;
+        real32 g; 
+        real32 b; 
+        real32 a; 
     };
     real32 E[4];
 };
@@ -36,11 +36,11 @@ union vector4D
 // *
 inline vector4D operator*(vector4D a, vector4D b)
 {
-    return { a.X * b.X, a.Y * b.Y, a.Z * b.Z, a.W * b.W };
+    return { a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w };
 }
 inline vector4D operator*(vector4D a, real32 b)
 {
-    return { a.X * b, a.Y * b, a.Z * b, a.W * b };    
+    return { a.x * b, a.y * b, a.z * b, a.w * b };    
 }
 inline vector4D operator*(real32 b, vector4D a)
 {
@@ -50,18 +50,18 @@ inline vector4D operator*(real32 b, vector4D a)
 // +
 inline vector4D operator+(vector4D a, vector4D b)
 {
-    return { a.X + b.X, a.Y + b.Y, a.Z + b.Z, a.W + b.W };
+    return { a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w };
 }
 // -
 inline vector4D operator-(vector4D a, vector4D b)
 {
-    return { a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.W - b.W };
+    return { a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w };
 }
 
 // -negate
 inline vector4D operator-(vector4D a)
 {
-    return { -a.X, -a.Y, -a.Z, -a.W };
+    return { -a.x, -a.y, -a.z, -a.w };
 }
 
 // *=
