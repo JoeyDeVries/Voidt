@@ -11,113 +11,6 @@
 *******************************************************************/
 #include "voidt.h"
 
-// #include "map.cpp"
-// #include "entity.cpp"
-// #include "sim_region.cpp"
-
-// #include "renderer/renderer.cpp"
-
-internal void DrawRectangle(game_offscreen_buffer *buffer, vector2D min, vector2D max, real32 r, real32 g, real32 b)
-{  
-    int32 minX = RoundReal32ToInt32(min.x);
-    int32 minY = RoundReal32ToInt32(min.y);
-    int32 maxX = RoundReal32ToInt32(max.x);
-    int32 maxY = RoundReal32ToInt32(max.y);
-    
-    if(minX < 0) minX = 0;
-    if(minY < 0) minY = 0;
-    if(maxX > buffer->Width) maxX = buffer->Width;
-    if(maxY > buffer->Height) maxY = buffer->Height;
-    
-    // BIT PATTERN: 0x AA RR GG BB
-    uint32 color = (RoundReal32ToUInt32(r * 255.0f) << 16) |
-                   (RoundReal32ToUInt32(g * 255.0f) << 8)  |
-                   (RoundReal32ToUInt32(b * 255.0f) << 0);
-        
-    uint8* row = (uint8*)buffer->Memory + minX * sizeof(uint32) + minY * buffer->Pitch;
-    
-    for(int y = minY; y < maxY; ++y)
-    {
-        uint32* pixel = (uint32*)row;
-        for(int x = minX; x < maxX; ++x)
-        {            
-            *pixel++ = color;        
-        }          
-        row += buffer->Pitch;
-    }
-    
-}
-
-/*
-internal void DrawBitmap(game_offscreen_buffer *buffer, loaded_bitmap *bitmap, real32 X, real32 Y, real32 alpha = 1.0f)
-{
-    // X -= (real32)alignX;
-    // Y -= (real32)alignY;
-    
-    int32 minX = RoundReal32ToInt32(X);
-    int32 minY = RoundReal32ToInt32(Y);
-    int32 maxX = minX + bitmap->Width;
-    int32 maxY = minY + bitmap->Height;
-    
-    int32 sourceOffsetX = 0; // fixing clipping
-    int32 sourceOffsetY = 0;
-    if(minX < 0) 
-    {
-        sourceOffsetX = -minX;
-        minX = 0;
-    }
-    if(minY < 0)
-    {
-        sourceOffsetY = -minY;
-        minY = 0;
-    }
-    if(maxX > buffer->Width)
-    { 
-        maxX = buffer->Width;
-    }
-    if(maxY > buffer->Height) 
-    {
-        maxY = buffer->Height;
-    }
-    
-    
-    uint32 *sourceRow = bitmap->Pixels + bitmap->Width*(bitmap->Height - 1); // start from top
-    sourceRow += -sourceOffsetY*bitmap->Width + sourceOffsetX; // offset source access by however much we clipped 
-    
-    uint8 *destRow = (uint8*)buffer->Memory + minX * buffer->BytesPerPixel + minY * buffer->Pitch;
-    
-    for(int y = minY; y < maxY; ++y)
-    {
-        uint32 *dest = (uint32*)destRow;
-        uint32 *source = (uint32*)sourceRow;
-        for(int x = minX; x < maxX; ++x)
-        {          
-            real32 A = (real32)((*source >> 24) & 0xFF) / 255.0f;
-            A *= alpha;
-            real32 SR = (real32)((*source >> 16) & 0xFF);
-            real32 SG = (real32)((*source >> 8) & 0xFF);
-            real32 SB = (real32)((*source >> 0) & 0xFF);
-            
-            real32 DR = (real32)((*dest >> 16) & 0xFF);
-            real32 DG = (real32)((*dest >> 8) & 0xFF);
-            real32 DB = (real32)((*dest >> 0) & 0xFF);
-    
-            real32 R = (1.0f - A)*DR + A*SR;
-            real32 G = (1.0f - A)*DG + A*SG;
-            real32 B = (1.0f - A)*DB + A*SB;
-            
-            *dest = ((uint32)(R + 0.5) << 16) |
-                    ((uint32)(G + 0.5) << 8) |
-                    ((uint32)(B + 0.5) << 0);
-    
-            dest++; source++;
-        }          
-        destRow += buffer->Pitch;
-        sourceRow -= bitmap->Width;
-    }      
-}
-*/
-
 void GameRender(game_offscreen_buffer *buffer, game_state *state)
 {
 
@@ -143,77 +36,6 @@ void GameOutputSound(game_sound_output_buffer *soundBuffer, game_state *gameStat
     // }        
 } 
 
-/*
-internal loaded_bitmap DEBUGLoadBMP(thread_context *thread, debug_platform_read_entire_file *readEntireFile, char *fileName)
-{
-    loaded_bitmap result = {};
-    
-    debug_read_file_result readResult = readEntireFile(thread, fileName);    
-    if(readResult.ContentSize != 0)
-    {
-        bitmap_header *header = (bitmap_header *)readResult.Contents;
-        uint32 *pixels = (uint32*)((uint8*)readResult.Contents + header->BitmapOffset);
-        result.Pixels = pixels;
-        result.Width= header->Width;
-        result.Height = header->Height;
-        
-        Assert(result.Height > 0); // we have a bottom-up bitmap; otherwise assert as we don't handle top-down bitmaps
-        
-        Assert(header->Compression == 3);
-        
-        // NOTE(Joey): byte order in memory is AA BB GG RR (AA first in lowest memory address), bottom upper_bound
-        // CPU reads it in as: RR GG BB AA (first reads AA, then BB)
-        // we need AA first so switch AA to the back for each pixel
-        // !!!actually: byte order is determined by the header itself with 3 masks for each individual color
-        
-        uint32 redMask = header->RedMask;
-        uint32 greenMask = header->GreenMask;
-        uint32 blueMask = header->BlueMask;
-        uint32 alphaMask = ~(redMask | greenMask | blueMask);
-        
-        uint32 redShift = 0;
-        uint32 greenShift = 0;
-        uint32 blueShift = 0;
-        uint32 alphaShift = 0;              
-        
-        bool32 found = FindLeastSignificantSetBit(&redShift, redMask);
-        Assert(found);
-        found = FindLeastSignificantSetBit(&greenShift, greenMask);
-        Assert(found);
-        found = FindLeastSignificantSetBit(&blueShift, blueMask);
-        Assert(found);
-        found = FindLeastSignificantSetBit(&alphaShift, alphaMask);
-        Assert(found);
-        
-        redShift = 16 - (int32)redShift;
-        greenShift = 8 - (int32)greenShift;
-        blueShift = 0 - (int32)blueShift;
-        alphaShift = 24 - (int32)alphaShift;
-        
-        uint32 *sourceDest = pixels;
-        for(int32 y = 0; y < result.Height; ++y)
-        {
-            for(int x = 0; x < result.Width; ++x)
-            {
-                uint32 C = *sourceDest;
-#if 0                
-                *sourceDest++ = (((C >> alphaShift) & 0xFF) << 24) | 
-                                (((C >> redShift  ) & 0xFF) << 16) | 
-                                (((C >> greenShift) & 0xFF) << 8)  | 
-                                (((C >> blueShift ) & 0xFF) << 0); 
-#else
-                *sourceDest++ = (RotateLeft(C & redMask, redShift) |
-                                 RotateLeft(C & greenMask, greenShift) |
-                                 RotateLeft(C & blueMask, blueShift) |
-                                 RotateLeft(C & alphaMask, alphaShift));
-#endif
-            }            
-        }
-    }
-    result.Pitch = result.Width*sizeof(uint32);
-    return result;
-}
-*/
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
@@ -304,8 +126,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //////////////////////////////////////////////////////////
     //       UPDATE CAMERA
     //////////////////////////////////////////////////////////         
-    DrawRectangle(screenBuffer, { 0.0f, 0.0f }, {(real32)screenBuffer->Width, (real32)screenBuffer->Height }, 0.8f, 0.5f, 0.5f);
-    
+
     // NOTE(Joey): render testing bed
     RenderRectangle_(screenBuffer, { 50.0f, 50.0f }, { 100.0f, 100.0f }, { 1.0f, 1.0f, 0.0f, 1.0f });
     

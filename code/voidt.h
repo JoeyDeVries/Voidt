@@ -17,9 +17,6 @@
 #include "voidt_platform.h"
 #include "intrinsics.h"
 #include "math/math.h"
-// #include "map.h"
-// #include "sim_region.h"
-// #include "entity.h"
 
 #include "common/random.h"
 #include "common/random.cpp"
@@ -35,21 +32,12 @@ inline game_controller_input* GetController(game_input *input, uint32 controller
 }
 
 
-// struct game_entity
-// {      
-    // uint32 LowIndex;
-    // high_entity *High;
-    // low_entity *Low;
-// };
-
-
 struct controlled_player
 {
     uint32 EntityIndex;
     vector3D Velocity;
     vector2D Acceleration;
     vector2D AccelerationSword;
-    // real32 dZ;
 };
 
 struct game_state
