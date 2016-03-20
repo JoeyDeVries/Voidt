@@ -65,59 +65,40 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     for(int controllerIndex = 0; controllerIndex < ArrayCount(input->Controllers); ++controllerIndex)
     {
         game_controller_input *controller = GetController(input, controllerIndex);
-        controlled_player *controlledPlayer = gameState->ControlledPlayers + controllerIndex;
-        if(controlledPlayer->EntityIndex == 0)
-        {
-            if(controller->Start.EndedDown)
-            {
-                      
-            }
-        }
-        else
-        {
-            controlledPlayer->Acceleration = {};
-            controlledPlayer->Velocity.z = 0.0f;
-            controlledPlayer->AccelerationSword = {};
+        // controlled_player *controlledPlayer = gameState->ControlledPlayers + controllerIndex;
+        if(controllerIndex == 0)
+        {            
+            // controlledPlayer->Acceleration = {};
             if(controller->IsAnalog)
             {
                 // analog movement tuning
-                controlledPlayer->Acceleration = { controller->StickAverageX, controller->StickAverageY };
+                // controlledPlayer->Acceleration = { controller->StickAverageX, controller->StickAverageY };
             }
             else
             {
                 // digital movement tuning
+                real32 cameraSpeed = 4.0f;
                 if(controller->MoveUp.EndedDown)
                 {
-                    controlledPlayer->Acceleration.y =  1.0f;
+                    // controlledPlayer->Acceleration.y =  1.0f;
+                    gameState->CameraPos.y += cameraSpeed;
                 }
                 if(controller->MoveDown.EndedDown)
                 {
-                    controlledPlayer->Acceleration.y = -1.0f;
+                    // controlledPlayer->Acceleration.y = -1.0f;
+                    gameState->CameraPos.y -= cameraSpeed;
                 }
                 if(controller->MoveLeft.EndedDown)
                 {
-                    controlledPlayer->Acceleration.x = -1.0f;
+                    // controlledPlayer->Acceleration.x = -1.0f;
+                    gameState->CameraPos.x -= cameraSpeed;
                 }
                 if(controller->MoveRight.EndedDown)
                 {
-                    controlledPlayer->Acceleration.x =  1.0f;
+                    // controlledPlayer->Acceleration.x =  1.0f;
+                    gameState->CameraPos.x += cameraSpeed;
                 }                                
             }
-            
-            if(controller->Start.EndedDown)
-            {
-                controlledPlayer->Velocity.z = 3.0f;                
-            }
-            
-           
-            if(controller->ActionUp.EndedDown)
-                controlledPlayer->AccelerationSword = {  0.0f,  1.0f };    
-            if(controller->ActionDown.EndedDown)
-                controlledPlayer->AccelerationSword = {  0.0f, -1.0f };    
-            if(controller->ActionLeft.EndedDown)
-                controlledPlayer->AccelerationSword = { -1.0f,  0.0f };    
-            if(controller->ActionRight.EndedDown)
-                controlledPlayer->AccelerationSword = {  1.0f,  0.0f };    
         }
     }
     
@@ -137,15 +118,21 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     real32 angle = gameState->TimePassed;
     // player
+    vector2D cameraPos = gameState->CameraPos;
+    vector2D playerPos = { -50.0f, 100.0f };
+    vector2D playerRelCamera = playerPos - cameraPos; 
+    
     vector2D basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     vector2D basisY = Perpendicular(basisX);
-    RenderTexture_(screenBuffer, &gameState->Player, { 150.0f, 450.0f }, { (real32)gameState->Player.Width, (real32)gameState->Player.Height }, basisX, basisY, { 1.0f, 1.0f, 1.0f, 1.0f });
+    RenderTexture_(screenBuffer, &gameState->Player, screenCenter + playerRelCamera, { (real32)gameState->Player.Width, (real32)gameState->Player.Height }, basisX, basisY, { 1.0f, 1.0f, 1.0f, 1.0f });
     
     // enemey
+    vector2D enemyPos = { 350.0f, -150.0f };
+    vector2D enemeyRelCamera = enemyPos - cameraPos;
     angle = 42.30f + gameState->TimePassed * 0.1f;
     basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     basisY = Perpendicular(basisX);
-    RenderTexture_(screenBuffer, &gameState->Enemy, { 750.0f, 150.0f }, { 200.0f, 200.0f }, basisX, basisY, { 1.0f, 1.0f, 1.0f, 1.0f });
+    RenderTexture_(screenBuffer, &gameState->Enemy, screenCenter + enemeyRelCamera, { 200.0f, 200.0f }, basisX, basisY, { 1.0f, 1.0f, 1.0f, 1.0f });
         
     //////////////////////////////////////////////////////////
     //       RENDER 

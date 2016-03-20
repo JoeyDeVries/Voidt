@@ -50,6 +50,7 @@ struct game_state
     Texture Background;
     
     real32 TimePassed;
+    vector2D CameraPos;
 };
 
 #endif

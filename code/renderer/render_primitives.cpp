@@ -81,7 +81,7 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
     if(minX < 0) {minX = 0;}
     if(minY < 0) {minY = 0;}
     if(maxX > buffer->Width - 1 ) { maxX = buffer->Width - 1; }
-    if(maxY > buffer->Height - 1) { maxY = buffer->Width - 1; }    
+    if(maxY > buffer->Height - 1) { maxY = buffer->Height - 1; }    
     
 
     uint32 destPitch = buffer->Width*sizeof(uint32);
