@@ -3,20 +3,20 @@
 ### Notes
 
 - Repository is not built around supporting different run-time configurations.
+- Built with 64 bit Visual C++ compiler; see misc/build.bat for compilation options.
 
 ### Low-level game code
 
-This project is the combined effort of learning to develop a relatively simple game in C/C++ without
-the use of any libraries, including a graphics API like OpenGL. This involves software-based rendering,
-managing custom windowing code + back-buffer memory, custom memory management, audio wave logic, etc.
+Voidt is the solo effort of aiming to develop a relatively simple, but performant game-engine and game in C with some features of C++ without the use of any libraries, including a graphics API like OpenGL. This involves software-based rendering, custom window management code with back-buffer memory, advanced memory management, SIMD-based mathematics and much more as inspired by the [Handmade Hero](https://handmadehero.org/) series; basically as low-level as one can get without having to write one's own operating system.
 
-This project is a follow-up/educational project on the videos/streams provided by [Handmade Hero](https://handmadehero.org/).
-
-For more information (including media) regarding the project: see [joeydevries.com](http://joeydevries.com/portfolio/low-level) { not yet live }.
+The project is still in development; for more information regarding the project: see [joeydevries.com](http://joeydevries.com/#portfolio).
 
 ### Features
 
 - Software-based renderer
+- Epic graphics
+- Local multiplayer
 - Manual Win32 window/input management
-- Custom memory allocation
-- Audio sine wave generics
+- Custom memory allocater
+- DirectSound circular audio buffer
+- SIMD intrinsics
