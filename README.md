@@ -9,7 +9,7 @@
 
 Voidt is the solo effort of aiming to develop a relatively simple, but performant game-engine and game in C with some features of C++ without the use of any libraries, including a graphics API like OpenGL. This involves software-based rendering, custom window management code with back-buffer memory, advanced memory management, SIMD-based mathematics and much more as inspired by the [Handmade Hero](https://handmadehero.org/) series; basically as low-level as one can get without having to write one's own operating system.
 
-The project is still in development; for more information regarding the project: see <a href="http://joeydevries.com/#portfolio" target="_blank">joeydevries.com</a>.
+The project is still in development; for more information regarding the project: see [joeydevries.com](http://joeydevries.com/#portfolio).
 
 ### Features
 
