@@ -3,7 +3,7 @@
 ### Notes
 
 - Repository is not built around supporting different run-time configurations.
-- Built with 64 bit Visual C++ compiler; see misc/build.bat for compilation options.
+- Built with 64 bit Visual C++ compiler; see code/build.bat for compilation options.
 
 ### Low-level game code
 
