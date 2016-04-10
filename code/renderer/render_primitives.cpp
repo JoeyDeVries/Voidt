@@ -104,18 +104,20 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
             vector2D pixelPos = { (real32)x, (real32)y };
             vector2D d = pixelPos - position; // from origin of system to new point
             
-            // NOTE(Joey): now take dot product of vector d with 4 edges of rotated quad (take perpendicular of axis as edges)
-            real32 edge1 = InnerProduct(d,                  Perpendicular(axisX));
-            real32 edge2 = InnerProduct(d - axisX,          Perpendicular(axisY));
-            real32 edge3 = InnerProduct(d - axisX - axisY, -Perpendicular(axisX));
-            real32 edge4 = InnerProduct(d - axisY,         -Perpendicular(axisY));
+            vector2D UV = { InnerProduct(d, axisX) / InnerProduct(axisX, axisX), 
+                                InnerProduct(d, axisY) / InnerProduct(axisY, axisY) };
             
-            if(edge1 > 0 && edge2 > 0 && edge3 > 0 && edge4 > 0)
+            // NOTE(Joey): now take dot product of vector d with 4 edges of rotated quad (take perpendicular of axis as edges)
+            // real32 edge1 = InnerProduct(d,                  Perpendicular(axisX));
+            // real32 edge2 = InnerProduct(d - axisX,          Perpendicular(axisY));
+            // real32 edge3 = InnerProduct(d - axisX - axisY, -Perpendicular(axisX));
+            // real32 edge4 = InnerProduct(d - axisY,         -Perpendicular(axisY));
+            
+            // if(edge1 > 0 && edge2 > 0 && edge3 > 0 && edge4 > 0)
+            if(UV.x >= 0.0f && UV.x <= 1.0f && UV.y >= 0.0f && UV.y <= 1.0f)
             {
                 // NOTE(Joey): we're inside the rotated quadriliteral, now get UV, sample from texture and render.
                 // d*x => |d||x|*cosa; now get d projected on x normalized => (|d||x|cosa)/ |x|^2 => (d*x)/(x*x)
-                vector2D UV = { InnerProduct(d, axisX) / InnerProduct(axisX, axisX), 
-                                InnerProduct(d, axisY) / InnerProduct(axisY, axisY) };
                 vector4D sampled = TextureSample(texture, UV, true); 
                 sampled = Hadamard(sampled, color);
                 real32 A = sampled.a;
