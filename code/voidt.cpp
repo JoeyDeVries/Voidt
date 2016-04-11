@@ -36,9 +36,11 @@ void GameOutputSound(game_sound_output_buffer *soundBuffer, game_state *gameStat
     // }        
 } 
 
-
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
-{
+{   
+    // NOTE(Joey): temp. debug output hook; replace with elegant platform debug output tooling.
+    GlobalPlatformWriteDebugOutput = memory->PlatformWriteDebugOutput;
+
     // Assert((&input->Controllers[0].Back - &input->Controllers[0].Buttons[0]) == ArrayCount(input->Controllers[0].Buttons) - 1); // check if button array matches union struct members
     Assert(sizeof(game_state) <= memory->PermanentStorageSize);      
     
@@ -135,8 +137,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     RenderTexture_(screenBuffer, &gameState->Enemy, screenCenter + enemeyRelCamera, { 200.0f, 200.0f }, basisX, basisY, { 1.0f, 1.0f, 1.0f, 1.0f });
         
     //////////////////////////////////////////////////////////
-    //       RENDER 
-    //////////////////////////////////////////////////////////        
+    //       OUTPUT 
+    //////////////////////////////////////////////////////////      
+
+    PrintCPUTiming(0);
+    PrintCPUTiming(1);
     
     gameState->TimePassed += input->dtPerFrame;
 }

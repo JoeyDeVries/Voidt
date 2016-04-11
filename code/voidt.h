@@ -18,10 +18,14 @@
 #include "intrinsics.h"
 #include "math/math.h"
 
+#include "logging/cpu_timing.h"
+#include "logging/cpu_timing.cpp"
+
 #include "common/random.h"
 #include "common/random.cpp"
 #include "renderer/renderer.h"
 #include "renderer/renderer.cpp"
+
 
 
 inline game_controller_input* GetController(game_input *input, uint32 controllerIndex)

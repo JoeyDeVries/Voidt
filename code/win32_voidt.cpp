@@ -30,6 +30,7 @@
 #include <xinput.h> // xbox 360 controller
 #include <dsound.h> // DirectSound
 #include <stdio.h> // c standard runtime/library
+#include <stdarg.h> // va_args 
 
 #include "win32_voidt.h"
 
@@ -143,6 +144,16 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
         CloseHandle(fileHandle);
     }
     return result;
+}
+
+PLATFORM_WRITE_DEBUG_OUTPUT(Win32WriteDebugOutput)
+{
+    char buffer[256];
+    va_list argptr;
+    va_start(argptr, format);
+    vsnprintf(buffer, sizeof(buffer), format, argptr);
+    OutputDebugStringA(buffer);
+    va_end(argptr);
 }
 
 inline FILETIME Win32GetLastWriteTime(char *fileName)
@@ -778,6 +789,7 @@ internal void Win32ProcessPendingMessages(win32_state *win32State, game_controll
 }
 
 
+
 int CALLBACK WinMain(
 	HINSTANCE instance,
 	HINSTANCE prevInstance,
@@ -819,6 +831,8 @@ int CALLBACK WinMain(
     bool32 sleepIsGranular = timeBeginPeriod(desiredSchedulerMS) == TIMERR_NOERROR;
         
        
+    
+    
     
     
 
@@ -891,6 +905,7 @@ int CALLBACK WinMain(
             gameMemory.DEBUGPlatformFreeFileMemory  = DEBUGPlatformFreeFileMemory;
             gameMemory.DEBUGPlatformReadEntireFile  = DEBUGPlatformReadEntireFile;
             gameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
+            gameMemory.PlatformWriteDebugOutput     = Win32WriteDebugOutput;
             
             for(int i = 0; i < 4; ++i)
             {
@@ -1182,7 +1197,7 @@ int CALLBACK WinMain(
                     real64 mcpf          = (real64)(cyclesElapsed / (1000.0f * 1000.0f)); // mega-cycles per frame                    
                     char charBuffer[256];
                     _snprintf_s(charBuffer, sizeof(charBuffer), "%.02fms/f / %.02ff/s  -  %.02fmc/f\n", msPerFrame, fps, mcpf); 
-                    OutputDebugStringA(charBuffer);
+                    // OutputDebugStringA(charBuffer);
   
                 }
             }

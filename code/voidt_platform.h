@@ -142,6 +142,9 @@ typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
 typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 #endif
 
+#define PLATFORM_WRITE_DEBUG_OUTPUT(name) void name(const char *format, ...)
+typedef PLATFORM_WRITE_DEBUG_OUTPUT(platform_write_debug_output);
+
 
 // needs defines from platform function hooks TODO(Joey): clean-up
 struct game_memory
@@ -156,9 +159,13 @@ struct game_memory
     
     debug_platform_free_file_memory  *DEBUGPlatformFreeFileMemory;
     debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
-    debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
+    debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;    
+    platform_write_debug_output      *PlatformWriteDebugOutput;
 };
 
+// NOTE(Joey): encapsulate this without using globals, but still keep it accesible
+// for all the game-code (logging tool)
+global_variable platform_write_debug_output *GlobalPlatformWriteDebugOutput;
 
 // ----------------------------------------------------------------------------
 //      Services that the game provides to the platform layer

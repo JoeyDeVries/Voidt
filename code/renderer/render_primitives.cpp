@@ -51,6 +51,9 @@ internal void RenderRectangle_(game_offscreen_buffer* buffer, vector2D position,
 
 internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, vector2D basisX, vector2D basisY, vector4D color)
 {
+    // TIMING(0): Entire draw call.
+    BeginCPUTiming(0); 
+    
      // NOTE(Joey): calculate scaled coordinate basis
     vector2D axisX = size.x * basisX;
     vector2D axisY = size.y * basisY;
@@ -96,7 +99,10 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
         uint32 *dest = (uint32*)destRow;
         uint32 *source = (uint32*)sourceRow;
         for(int32 x = minX; x < maxX; ++x)
-        {          
+        {   
+            // TIMING(1): Per pixel CPU timing
+            BeginCPUTiming(1); 
+    
             if(x == 300 && y == 300)
                 int asd = 5;
             
@@ -133,14 +139,17 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
                         ((uint32)(G + 0.5) << 8) |
                         ((uint32)(B + 0.5) << 0);
 
-           }           
-    
+           }
+                        
             // dest++; source++;
             dest++; source++;
+            
+            EndCPUTiming(1);  
         }          
         destRow += destPitch;
         sourceRow += texture->Pitch;
-    }       
+    }
+    EndCPUTiming(0);
 }
 
 ///////////////////////////////
