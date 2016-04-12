@@ -18,6 +18,12 @@ struct rectangle2D
     vector2D Max;    
 };
 
+struct rectangle2Di
+{
+    int32 MinX, MinY;
+    int32 MaxX, MaxY;
+};
+
 // ----------------------------------------------------------------------------
 //      UTILITY
 // ----------------------------------------------------------------------------
@@ -79,6 +85,67 @@ inline bool32 IsInRectangle(rectangle2D rectangle, vector2D test)
                     test.y  < rectangle.Max.y;
     
     return true;
+}
+
+
+// Rectangle2Di functions
+inline rectangle2Di
+Intersect(rectangle2Di a, rectangle2Di b)
+{
+    rectangle2Di result;
+    
+    result.MinX = (a.MinX < b.MinX) ? b.MinX : a.MinX;
+    result.MinY = (a.MinY < b.MinY) ? b.MinY : a.MinY;
+    result.MaxX = (a.MaxX > b.MaxX) ? b.MaxX : a.MaxX;
+    result.MaxY = (a.MaxY > b.MaxY) ? b.MaxY : a.MaxY;    
+
+    return(result);
+}
+
+inline rectangle2Di
+Union(rectangle2Di a, rectangle2Di b)
+{
+    rectangle2Di result;
+    
+    result.MinX = (a.MinX < b.MinX) ? a.MinX : b.MinX;
+    result.MinY = (a.MinY < b.MinY) ? a.MinY : b.MinY;
+    result.MaxX = (a.MaxX > b.MaxX) ? a.MaxX : b.MaxX;
+    result.MaxY = (a.MaxY > b.MaxY) ? a.MaxY : b.MaxY;
+
+    return(result);
+}
+
+inline int32
+GetClampedRectArea(rectangle2Di a)
+{
+    int32 width = (a.MaxX - a.MinX);
+    int32 height = (a.MaxY - a.MinY);
+    int32 result = 0;
+    if((width > 0) && (height > 0))
+    {
+        result = width*height;
+    }
+
+    return(result);
+}
+
+inline bool32
+HasArea(rectangle2Di a)
+{
+    bool32 result = ((a.MinX < a.MaxX) && (a.MinY < a.MaxY));
+
+    return(result);
+}
+
+inline rectangle2Di
+InvertedInfinityRectangle(void)
+{
+    rectangle2Di result;
+
+    result.MinX = result.MinY =  1000000;
+    result.MaxX = result.MaxY = -1000000;
+
+    return(result);
 }
 
 #endif  

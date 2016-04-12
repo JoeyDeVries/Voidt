@@ -17,12 +17,12 @@ void BeginCPUTiming(uint32 id)
     _CPUPerformanceBuffer[id].StartCycle = __rdtsc();
 }
 
-void EndCPUTiming(uint32 id)
+void EndCPUTiming(uint32 id, uint32 workCount = 1)
 {
     Assert(id < ArrayCount(_CPUPerformanceBuffer));    
     
     __int64 endCycleCount = __rdtsc();
-    _CPUPerformanceBuffer[id].TotalCycles += (endCycleCount - _CPUPerformanceBuffer[id].StartCycle);
+    _CPUPerformanceBuffer[id].TotalCycles += ((endCycleCount - _CPUPerformanceBuffer[id].StartCycle) / workCount);
 }
 
 void PrintCPUTiming(uint32 id)

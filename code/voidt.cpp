@@ -110,7 +110,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //       UPDATE CAMERA
     //////////////////////////////////////////////////////////         
 
+    rectangle2D clipRect = { {0.0f, 0.0f }, { (real32)screenBuffer->Width, (real32)screenBuffer->Height } };
+    
     // NOTE(Joey): render testing bed
+    RenderRectangle_(screenBuffer, { 0.0f, 0.0f }, clipRect.Max, { 1.0f, 0.7f, 0.0f, 1.0f });
     RenderRectangle_(screenBuffer, { 50.0f, 50.0f }, { 100.0f, 100.0f }, { 1.0f, 1.0f, 0.0f, 1.0f });
     
     // background
@@ -126,7 +129,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     vector2D basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     vector2D basisY = Perpendicular(basisX);
-    RenderTexture_(screenBuffer, &gameState->Player, screenCenter + playerRelCamera, { (real32)gameState->Player.Width, (real32)gameState->Player.Height }, basisX, basisY, { 1.0f, 1.0f, 1.0f, 1.0f });
+    RenderTexture_(screenBuffer, &gameState->Player, screenCenter + playerRelCamera, { (real32)gameState->Player.Width, (real32)gameState->Player.Height }, basisX, basisY, clipRect, { 1.0f, 1.0f, 1.0f, 0.5f });
     
     // enemey
     vector2D enemyPos = { 350.0f, -150.0f };
@@ -134,7 +137,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     angle = 42.30f + gameState->TimePassed * 0.1f;
     basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     basisY = Perpendicular(basisX);
-    RenderTexture_(screenBuffer, &gameState->Enemy, screenCenter + enemeyRelCamera, { 200.0f, 200.0f }, basisX, basisY, { 1.0f, 1.0f, 1.0f, 1.0f });
+    RenderTexture_(screenBuffer, &gameState->Enemy, screenCenter + enemeyRelCamera, { 200.0f, 200.0f }, basisX, basisY, clipRect, { 1.0f, 1.0f, 1.0f, 1.0f });
         
     //////////////////////////////////////////////////////////
     //       OUTPUT 

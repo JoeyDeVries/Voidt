@@ -49,7 +49,7 @@ internal void RenderRectangle_(game_offscreen_buffer* buffer, vector2D position,
 };
 
 
-internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, vector2D basisX, vector2D basisY, vector4D color)
+internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, vector2D basisX, vector2D basisY, rectangle2D clipRect, vector4D color)
 {
     // TIMING(0): Entire draw call.
     BeginCPUTiming(0); 
@@ -86,68 +86,255 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
     if(maxX > buffer->Width - 1 ) { maxX = buffer->Width - 1; }
     if(maxY > buffer->Height - 1) { maxY = buffer->Height - 1; }    
     
+    // TODO(Joey): intersect clip rect with fill rect (determined from min/max above)
+    // and if intersecting rectangle has an area, only then render pixels.
+    // NOTE(Joey): align masks to 4-byte/16-pixel boundary
+     __m128i startupClipMask = _mm_set1_epi8(-1);
+    int fillWidth = maxX - minX;
+    int fillWidthAlign = fillWidth & 3;
+    if(fillWidthAlign > 0)
+    {
+        int adjustment = (4 - fillWidthAlign);
+        switch(adjustment)
+        {
+            case 1: {startupClipMask = _mm_slli_si128(startupClipMask, 1*4);} break;
+            case 2: {startupClipMask = _mm_slli_si128(startupClipMask, 2*4);} break;
+            case 3: {startupClipMask = _mm_slli_si128(startupClipMask, 3*4);} break;
+        }
+        fillWidth += adjustment;
+        minX = maxX - fillWidth;
+    }
 
     uint32 destPitch = buffer->Width*sizeof(uint32);
     uint8 *destRow = (uint8*)buffer->Memory + minY*destPitch + minX*sizeof(uint32);
     
-    uint8 *sourceRow = (uint8*)texture->Texels; // NOTE(Joey): bottom-up
-    // sourceRow += -sourceOffsetY*texture->Pitch + sourceOffsetX*sizeof(uint32); // NOTE(Joey): offset source access by however much we clipped 
+    // uint8 *sourceRow = (uint8*)texture->Texels; // NOTE(Joey): bottom-up
     
+    // SIMD        
+    #define mmSquare(a) _mm_mul_ps(a, a)
+    #define M(a, i) ((float*)&(a))[i]
+    #define Mi(a, i) ((uint32*)&(a))[i]        
+    // SIMD globals
+    const __m128 zero = _mm_set1_ps(0.0f);
+    const __m128 one = _mm_set1_ps(1.0f);
+    const __m128 four = _mm_set1_ps(4.0f);
+    const __m128i maskFF = _mm_set1_epi32(0xFF);
+    const __m128i maskFFFF = _mm_set1_epi32(0xFFFF);
+    const __m128i maskFF00FF = _mm_set1_epi32(0x00FF00FF);
     
-    for(int32 y = minY; y < maxY; ++y)
-    {
-        uint32 *dest = (uint32*)destRow;
-        uint32 *source = (uint32*)sourceRow;
-        for(int32 x = minX; x < maxX; ++x)
-        {   
-            // TIMING(1): Per pixel CPU timing
-            BeginCPUTiming(1); 
+    const real32 inv255 = 1.0f / 255.0f;
+    const __m128 inv255_4x = _mm_set1_ps(inv255);
     
-            if(x == 300 && y == 300)
-                int asd = 5;
-            
-            // NOTE(Joey): determine if pixel is in rotated region
-            vector2D pixelPos = { (real32)x, (real32)y };
-            vector2D d = pixelPos - position; // from origin of system to new point
-            
-            vector2D UV = { InnerProduct(d, axisX) / InnerProduct(axisX, axisX), 
-                                InnerProduct(d, axisY) / InnerProduct(axisY, axisY) };
-            
-            // NOTE(Joey): now take dot product of vector d with 4 edges of rotated quad (take perpendicular of axis as edges)
-            // real32 edge1 = InnerProduct(d,                  Perpendicular(axisX));
-            // real32 edge2 = InnerProduct(d - axisX,          Perpendicular(axisY));
-            // real32 edge3 = InnerProduct(d - axisX - axisY, -Perpendicular(axisX));
-            // real32 edge4 = InnerProduct(d - axisY,         -Perpendicular(axisY));
-            
-            // if(edge1 > 0 && edge2 > 0 && edge3 > 0 && edge4 > 0)
-            if(UV.x >= 0.0f && UV.x <= 1.0f && UV.y >= 0.0f && UV.y <= 1.0f)
-            {
-                // NOTE(Joey): we're inside the rotated quadriliteral, now get UV, sample from texture and render.
-                // d*x => |d||x|*cosa; now get d projected on x normalized => (|d||x|cosa)/ |x|^2 => (d*x)/(x*x)
-                vector4D sampled = TextureSample(texture, UV, true); 
-                sampled = Hadamard(sampled, color);
-                real32 A = sampled.a;
-                real32 DR = (real32)((*dest >> 16) & 0xFF);
-                real32 DG = (real32)((*dest >> 8) & 0xFF);
-                real32 DB = (real32)((*dest >> 0) & 0xFF);
+    const __m128 colorr_4x = _mm_set1_ps(color.r);
+    const __m128 colorg_4x = _mm_set1_ps(color.g);
+    const __m128 colorb_4x = _mm_set1_ps(color.b);
+    const __m128 colora_4x = _mm_set1_ps(color.a);
+    const __m128 maxColorValue = _mm_set1_ps(255.0f);
         
-                real32 R = (1.0f - A)*DR + A*sampled.r;
-                real32 G = (1.0f - A)*DG + A*sampled.g;
-                real32 B = (1.0f - A)*DB + A*sampled.b;
-                            
-                *dest = ((uint32)(R + 0.5) << 16) |
-                        ((uint32)(G + 0.5) << 8) |
-                        ((uint32)(B + 0.5) << 0);
+    const __m128 mAxisXx   = _mm_set1_ps(axisX.x);
+    const __m128 mAxisXy   = _mm_set1_ps(axisX.y);
+    const __m128 mAxisYx   = _mm_set1_ps(axisY.x);
+    const __m128 mAxisYy   = _mm_set1_ps(axisY.y);
+    const __m128 positionX = _mm_set1_ps(position.x);
+    const __m128 positionY = _mm_set1_ps(position.y);    
 
-           }
-                        
-            // dest++; source++;
-            dest++; source++;
+    const __m128 invSquareDotAxisX =  _mm_div_ps(one, _mm_add_ps(mmSquare(mAxisXx), mmSquare(mAxisXy))); 
+    const __m128 invSquareDotAxisY =  _mm_div_ps(one, _mm_add_ps(mmSquare(mAxisYx), mmSquare(mAxisYy))); 
+    const __m128 texWidthM2 = _mm_set1_ps((real32)texture->Width - 2);
+    const __m128 texHeightM2 = _mm_set1_ps((real32)texture->Height - 2);
+    const __m128i texturePitch_4x = _mm_set1_epi32(texture->Pitch);
+
+    // TODO(Joey): replace this logic with clipping rectangle
+    if (minX >= 0 && minY >= 0)
+    {
+        for (int32 y = minY; y < maxY; ++y)
+        {
+            uint32 *dest = (uint32*)destRow;
+            __m128i clipMask = startupClipMask;
+
+            __m128 pixelPosY = _mm_set1_ps((real32)y);
+            __m128 dY = _mm_sub_ps(pixelPosY, positionY);
+  
+            __m128 pixelPosX = _mm_set_ps((real32)(minX + 3),
+                                          (real32)(minX + 2), 
+                                          (real32)(minX + 1), 
+                                          (real32)(minX + 0));
+            __m128 dX = _mm_sub_ps(pixelPosX, positionX);
+                               
+            for (int32 x = minX; x < maxX; x += 4)
+            {
+                // TIMING(1): Per pixel CPU timing
+                BeginCPUTiming(1);
+
+                // NOTE(Joey): pre-fetch destination memory at start
+                __m128i originalDest = _mm_loadu_si128((__m128i *)dest);
+
+                __m128 uNominator = _mm_add_ps(_mm_mul_ps(dX, mAxisXx), _mm_mul_ps(dY, mAxisXy));
+                __m128 U = _mm_mul_ps(invSquareDotAxisX, uNominator);
+                __m128 vNominator = _mm_add_ps(_mm_mul_ps(dX, mAxisYx), _mm_mul_ps(dY, mAxisYy));
+                __m128 V = _mm_mul_ps(invSquareDotAxisY, vNominator);                  
+
+                // NOTE(Joey): determine from UV whether we write pixels (none if out of range [0, 1])
+                __m128i writeMask = _mm_castps_si128(_mm_and_ps(_mm_and_ps(_mm_cmpge_ps(U, zero),
+                                                     _mm_cmple_ps(U, one)),
+                                                     _mm_and_ps(_mm_cmpge_ps(V, zero),
+                                                     _mm_cmple_ps(V, one))));
+                writeMask = _mm_and_si128(writeMask, clipMask);
+                // writeMask = _mm_set1_epi32(0xFFFFFFFF);
+
+                // NOTE(Joey): after determining write mask, clamp UV and fetch texels
+                U = _mm_min_ps(_mm_max_ps(U, zero), one);
+                V = _mm_min_ps(_mm_max_ps(V, zero), one);
+
+                __m128 tX = _mm_mul_ps(U, texWidthM2);
+                __m128 tY = _mm_mul_ps(V, texHeightM2);
+                __m128i fetchX_4x = _mm_cvttps_epi32(tX);
+                __m128i fetchY_4x = _mm_cvttps_epi32(tY);
+                __m128 fX = _mm_sub_ps(tX, _mm_cvtepi32_ps(fetchX_4x));
+                __m128 fY = _mm_sub_ps(tY, _mm_cvtepi32_ps(fetchY_4x));
+
+                fetchX_4x = _mm_slli_epi32(fetchX_4x, 2);
+                fetchY_4x = _mm_or_si128(_mm_mullo_epi16(fetchY_4x, texturePitch_4x),
+                    _mm_slli_epi32(_mm_mulhi_epi16(fetchY_4x, texturePitch_4x), 16));
+                __m128i fetch_4x = _mm_add_epi32(fetchX_4x, fetchY_4x);
+
+                // NOTE(Joey): fetch 4 samples for bilinear blend
+                int32 fetch0 = Mi(fetch_4x, 0);
+                int32 fetch1 = Mi(fetch_4x, 1);
+                int32 fetch2 = Mi(fetch_4x, 2);
+                int32 fetch3 = Mi(fetch_4x, 3);
+
+                uint8 *texelPtr0 = ((uint8 *)texture->Texels) + fetch0;
+                uint8 *texelPtr1 = ((uint8 *)texture->Texels) + fetch1;
+                uint8 *texelPtr2 = ((uint8 *)texture->Texels) + fetch2;
+                uint8 *texelPtr3 = ((uint8 *)texture->Texels) + fetch3;
+
+                __m128i sampleA = _mm_setr_epi32(*(uint32 *)(texelPtr0),
+                                                 *(uint32 *)(texelPtr1),
+                                                 *(uint32 *)(texelPtr2),
+                                                 *(uint32 *)(texelPtr3));
+
+                __m128i sampleB = _mm_setr_epi32(*(uint32 *)(texelPtr0 + sizeof(uint32)),
+                                                 *(uint32 *)(texelPtr1 + sizeof(uint32)),
+                                                 *(uint32 *)(texelPtr2 + sizeof(uint32)),
+                                                 *(uint32 *)(texelPtr3 + sizeof(uint32)));
+
+                __m128i sampleC = _mm_setr_epi32(*(uint32 *)(texelPtr0 + texture->Pitch),
+                                                 *(uint32 *)(texelPtr1 + texture->Pitch),
+                                                 *(uint32 *)(texelPtr2 + texture->Pitch),
+                                                 *(uint32 *)(texelPtr3 + texture->Pitch));
+
+                __m128i sampleD = _mm_setr_epi32(*(uint32 *)(texelPtr0 + texture->Pitch + sizeof(uint32)),
+                                                 *(uint32 *)(texelPtr1 + texture->Pitch + sizeof(uint32)),
+                                                 *(uint32 *)(texelPtr2 + texture->Pitch + sizeof(uint32)),
+                                                 *(uint32 *)(texelPtr3 + texture->Pitch + sizeof(uint32)));
+
+                // NOTE(Joey): unpack bilinear samples
+                __m128i texelArb = _mm_and_si128(sampleA, maskFF00FF);
+                __m128i texelAag = _mm_and_si128(_mm_srli_epi32(sampleA, 8), maskFF00FF);
+                __m128 texelAa = _mm_cvtepi32_ps(_mm_srli_epi32(texelAag, 16));
+
+                __m128i texelBrb = _mm_and_si128(sampleB, maskFF00FF);
+                __m128i texelBag = _mm_and_si128(_mm_srli_epi32(sampleB, 8), maskFF00FF);
+                __m128 texelBa = _mm_cvtepi32_ps(_mm_srli_epi32(texelBag, 16));
+
+                __m128i texelCrb = _mm_and_si128(sampleC, maskFF00FF);
+                __m128i texelCag = _mm_and_si128(_mm_srli_epi32(sampleC, 8), maskFF00FF);
+                __m128 texelCa = _mm_cvtepi32_ps(_mm_srli_epi32(texelCag, 16));
+
+                __m128i texelDrb = _mm_and_si128(sampleD, maskFF00FF);
+                __m128i texelDag = _mm_and_si128(_mm_srli_epi32(sampleD, 8), maskFF00FF);
+                __m128 texelDa = _mm_cvtepi32_ps(_mm_srli_epi32(texelDag, 16));
+
+                // NOTE(Joey): Load destination
+                __m128 destb = _mm_cvtepi32_ps(_mm_and_si128(originalDest, maskFF));
+                __m128 destg = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(originalDest, 8), maskFF));
+                __m128 destr = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(originalDest, 16), maskFF));
+                __m128 desta = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(originalDest, 24), maskFF));
+
+                // NOTE(Joey): extract individual texel components and cvt. to real.
+                __m128 texelAr = _mm_cvtepi32_ps(_mm_srli_epi32(texelArb, 16));
+                __m128 texelAg = _mm_cvtepi32_ps(_mm_and_si128(texelAag, maskFFFF));
+                __m128 texelAb = _mm_cvtepi32_ps(_mm_and_si128(texelArb, maskFFFF));
+
+                __m128 texelBr = _mm_cvtepi32_ps(_mm_srli_epi32(texelBrb, 16));
+                __m128 texelBg = _mm_cvtepi32_ps(_mm_and_si128(texelBag, maskFFFF));
+                __m128 texelBb = _mm_cvtepi32_ps(_mm_and_si128(texelBrb, maskFFFF));
+
+                __m128 texelCr = _mm_cvtepi32_ps(_mm_srli_epi32(texelCrb, 16));
+                __m128 texelCg = _mm_cvtepi32_ps(_mm_and_si128(texelCag, maskFFFF));
+                __m128 texelCb = _mm_cvtepi32_ps(_mm_and_si128(texelCrb, maskFFFF));
+
+                __m128 texelDr = _mm_cvtepi32_ps(_mm_srli_epi32(texelDrb, 16));
+                __m128 texelDg = _mm_cvtepi32_ps(_mm_and_si128(texelDag, maskFFFF));
+                __m128 texelDb = _mm_cvtepi32_ps(_mm_and_si128(texelDrb, maskFFFF));
+                
+                // NOTE(Joey): bilinear texture filtering
+                __m128 ifX = _mm_sub_ps(one, fX);
+                __m128 ifY = _mm_sub_ps(one, fY);
             
-            EndCPUTiming(1);  
-        }          
-        destRow += destPitch;
-        sourceRow += texture->Pitch;
+                __m128 l0 = _mm_mul_ps(ifY, ifX);
+                __m128 l1 = _mm_mul_ps(ifY, fX);
+                __m128 l2 = _mm_mul_ps(fY, ifX);
+                __m128 l3 = _mm_mul_ps(fY, fX);
+
+                __m128 texelr = _mm_add_ps(_mm_add_ps(_mm_mul_ps(l0, texelAr), _mm_mul_ps(l1, texelBr)),
+                                           _mm_add_ps(_mm_mul_ps(l2, texelCr), _mm_mul_ps(l3, texelDr)));
+                __m128 texelg = _mm_add_ps(_mm_add_ps(_mm_mul_ps(l0, texelAg), _mm_mul_ps(l1, texelBg)),
+                                           _mm_add_ps(_mm_mul_ps(l2, texelCg), _mm_mul_ps(l3, texelDg)));
+                __m128 texelb = _mm_add_ps(_mm_add_ps(_mm_mul_ps(l0, texelAb), _mm_mul_ps(l1, texelBb)),
+                                           _mm_add_ps(_mm_mul_ps(l2, texelCb), _mm_mul_ps(l3, texelDb)));
+                __m128 texela = _mm_add_ps(_mm_add_ps(_mm_mul_ps(l0, texelAa), _mm_mul_ps(l1, texelBa)),
+                                           _mm_add_ps(_mm_mul_ps(l2, texelCa), _mm_mul_ps(l3, texelDa)));
+
+                // texelr = texelAr;
+                // texelg = texelAg;
+                // texelb = texelAb;
+                // texela = texelAa;
+                // NOTE(Joey): Modulate by color
+                texelr = _mm_mul_ps(texelr, colorr_4x);
+                texelg = _mm_mul_ps(texelg, colorg_4x);
+                texelb = _mm_mul_ps(texelb, colorb_4x);
+                texela = _mm_mul_ps(texela, colora_4x);
+                
+                texelr = _mm_min_ps(_mm_max_ps(texelr, zero), maxColorValue);
+                texelg = _mm_min_ps(_mm_max_ps(texelg, zero), maxColorValue);
+                texelb = _mm_min_ps(_mm_max_ps(texelb, zero), maxColorValue);
+
+                // NOTE(Joey): destination/framebuffer blend
+                __m128 mulAlpha  = _mm_mul_ps(inv255_4x, texela);
+                __m128 invTexelA = _mm_sub_ps(one, mulAlpha);
+                __m128 blendedr = _mm_add_ps(_mm_mul_ps(invTexelA, destr), _mm_mul_ps(mulAlpha, texelr));
+                __m128 blendedg = _mm_add_ps(_mm_mul_ps(invTexelA, destg), _mm_mul_ps(mulAlpha, texelg));
+                __m128 blendedb = _mm_add_ps(_mm_mul_ps(invTexelA, destb), _mm_mul_ps(mulAlpha, texelb));
+                __m128 blendeda = _mm_add_ps(_mm_mul_ps(invTexelA, desta), _mm_mul_ps(mulAlpha, texela));
+                
+                    
+                // NOTE(Joey): write back to framebuffer memory
+                __m128i intr = _mm_cvtps_epi32(blendedr);
+                __m128i intg = _mm_cvtps_epi32(blendedg);
+                __m128i intb = _mm_cvtps_epi32(blendedb);
+                __m128i inta = _mm_cvtps_epi32(blendeda);
+                // NOTE(Joey): pack to windows destination RGBA format
+                __m128i sr = _mm_slli_epi32(intr, 16);
+                __m128i sg = _mm_slli_epi32(intg, 8);
+                __m128i sb = intb;
+                __m128i sa = _mm_slli_epi32(inta, 24);
+                __m128i out = _mm_or_si128(_mm_or_si128(sr, sg), _mm_or_si128(sb, sa));
+                
+                // NOTE(Joey): only write to memory where mask bits are set
+                __m128i maskedOut = _mm_or_si128(_mm_and_si128(writeMask, out),
+                                                 _mm_andnot_si128(writeMask, originalDest));
+                _mm_storeu_si128((__m128i *)dest, maskedOut);
+ 
+                dest += 4; 
+                dX = _mm_add_ps(dX, four);
+                clipMask = _mm_set1_epi8(-1);
+
+                EndCPUTiming(1, 4);
+            }
+            destRow += destPitch;
+        }
     }
     EndCPUTiming(0);
 }
@@ -157,5 +344,6 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
 ///////////////////////////////
 internal void RenderTexture(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, vector4D color = { 1.0f, 1.0f, 1.0f, 1.0f })
 {
-    RenderTexture_(buffer, texture, position, size, { 1.0f, 0.0f }, { 0.0f, 1.0f }, color);
+    rectangle2D clipRect = { {0.0f, 0.0f }, { (real32)buffer->Width, (real32)buffer->Height } };
+    RenderTexture_(buffer, texture, position, size, { 1.0f, 0.0f }, { 0.0f, 1.0f }, clipRect,  color);
 }
