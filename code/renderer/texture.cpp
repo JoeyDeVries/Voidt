@@ -80,8 +80,6 @@ internal vector4D TextureSample(Texture *texture, vector2D uv, bool32 bilinear =
 }
 
 
-
-
 // .BMP Texture loading
 internal Texture LoadTexture(thread_context *thread, debug_platform_read_entire_file *readEntireFile, char *fileName)
 {

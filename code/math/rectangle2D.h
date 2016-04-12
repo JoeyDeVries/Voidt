@@ -142,6 +142,7 @@ InvertedInfinityRectangle(void)
 {
     rectangle2Di result;
 
+    // TODO(Joey): use INT_MAX here 
     result.MinX = result.MinY =  1000000;
     result.MaxX = result.MaxY = -1000000;
 

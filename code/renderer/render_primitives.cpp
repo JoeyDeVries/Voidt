@@ -49,7 +49,7 @@ internal void RenderRectangle_(game_offscreen_buffer* buffer, vector2D position,
 };
 
 
-internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, vector2D basisX, vector2D basisY, rectangle2D clipRect, vector4D color)
+internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, vector2D basisX, vector2D basisY, rectangle2Di clipRect, vector4D color)
 {
     // TIMING(0): Entire draw call.
     BeginCPUTiming(0); 
@@ -62,10 +62,7 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
     position = position - 0.5f*axisX - 0.5f*axisY;
     
     // NOTE(Joey): test min max bounds in given coordinate system
-    int32 minX = buffer->Width - 1;
-    int32 minY = buffer->Height - 1;
-    int32 maxX = 0;
-    int32 maxY = 0;
+    rectangle2Di fillRect = InvertedInfinityRectangle();
     vector2D testPositions[4] = {position, position + axisX, position + axisX + axisY, position + axisY};
     for(int i= 0; i < ArrayCount(testPositions); ++i)
     {
@@ -75,85 +72,100 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
         int floorY = FloorReal32ToInt32(testPos.y);
         int ceilY = CeilReal32ToInt32(testPos.y);
 
-        if(minX > floorX) {minX = floorX;}
-        if(minY > floorY) {minY = floorY;}
-        if(maxX < ceilX) {maxX = ceilX;}
-        if(maxY < ceilY) {maxY = ceilY;}
+        if(fillRect.MinX > floorX) {fillRect.MinX = floorX;}
+        if(fillRect.MinY > floorY) {fillRect.MinY = floorY;}
+        if(fillRect.MaxX < ceilX) {fillRect.MaxX = ceilX;}
+        if(fillRect.MaxY < ceilY) {fillRect.MaxY = ceilY;}
     }   
-    
-    if(minX < 0) {minX = 0;}
-    if(minY < 0) {minY = 0;}
-    if(maxX > buffer->Width - 1 ) { maxX = buffer->Width - 1; }
-    if(maxY > buffer->Height - 1) { maxY = buffer->Height - 1; }    
-    
-    // TODO(Joey): intersect clip rect with fill rect (determined from min/max above)
-    // and if intersecting rectangle has an area, only then render pixels.
-    // NOTE(Joey): align masks to 4-byte/16-pixel boundary
-     __m128i startupClipMask = _mm_set1_epi8(-1);
-    int fillWidth = maxX - minX;
-    int fillWidthAlign = fillWidth & 3;
-    if(fillWidthAlign > 0)
-    {
-        int adjustment = (4 - fillWidthAlign);
-        switch(adjustment)
-        {
-            case 1: {startupClipMask = _mm_slli_si128(startupClipMask, 1*4);} break;
-            case 2: {startupClipMask = _mm_slli_si128(startupClipMask, 2*4);} break;
-            case 3: {startupClipMask = _mm_slli_si128(startupClipMask, 3*4);} break;
-        }
-        fillWidth += adjustment;
-        minX = maxX - fillWidth;
-    }
-
-    uint32 destPitch = buffer->Width*sizeof(uint32);
-    uint8 *destRow = (uint8*)buffer->Memory + minY*destPitch + minX*sizeof(uint32);
-    
-    // uint8 *sourceRow = (uint8*)texture->Texels; // NOTE(Joey): bottom-up
-    
-    // SIMD        
-    #define mmSquare(a) _mm_mul_ps(a, a)
-    #define M(a, i) ((float*)&(a))[i]
-    #define Mi(a, i) ((uint32*)&(a))[i]        
-    // SIMD globals
-    const __m128 zero = _mm_set1_ps(0.0f);
-    const __m128 one = _mm_set1_ps(1.0f);
-    const __m128 four = _mm_set1_ps(4.0f);
-    const __m128i maskFF = _mm_set1_epi32(0xFF);
-    const __m128i maskFFFF = _mm_set1_epi32(0xFFFF);
-    const __m128i maskFF00FF = _mm_set1_epi32(0x00FF00FF);
-    
-    const real32 inv255 = 1.0f / 255.0f;
-    const __m128 inv255_4x = _mm_set1_ps(inv255);
-    
-    const __m128 colorr_4x = _mm_set1_ps(color.r);
-    const __m128 colorg_4x = _mm_set1_ps(color.g);
-    const __m128 colorb_4x = _mm_set1_ps(color.b);
-    const __m128 colora_4x = _mm_set1_ps(color.a);
-    const __m128 maxColorValue = _mm_set1_ps(255.0f);
         
-    const __m128 mAxisXx   = _mm_set1_ps(axisX.x);
-    const __m128 mAxisXy   = _mm_set1_ps(axisX.y);
-    const __m128 mAxisYx   = _mm_set1_ps(axisY.x);
-    const __m128 mAxisYy   = _mm_set1_ps(axisY.y);
-    const __m128 positionX = _mm_set1_ps(position.x);
-    const __m128 positionY = _mm_set1_ps(position.y);    
+    fillRect = Intersect(clipRect, fillRect);
+    if(HasArea(fillRect))
+    {              
+        // NOTE(Joey): align masks to 4-byte/16-pixel boundary
+        __m128i startClipMask = _mm_set1_epi8(-1);
+        __m128i endClipMask = _mm_set1_epi8(-1);
 
-    const __m128 invSquareDotAxisX =  _mm_div_ps(one, _mm_add_ps(mmSquare(mAxisXx), mmSquare(mAxisXy))); 
-    const __m128 invSquareDotAxisY =  _mm_div_ps(one, _mm_add_ps(mmSquare(mAxisYx), mmSquare(mAxisYy))); 
-    const __m128 texWidthM2 = _mm_set1_ps((real32)texture->Width - 2);
-    const __m128 texHeightM2 = _mm_set1_ps((real32)texture->Height - 2);
-    const __m128i texturePitch_4x = _mm_set1_epi32(texture->Pitch);
+        __m128i startClipMasks[] =
+        {
+            _mm_slli_si128(startClipMask, 0*4),
+            _mm_slli_si128(startClipMask, 1*4),
+            _mm_slli_si128(startClipMask, 2*4),
+            _mm_slli_si128(startClipMask, 3*4),            
+        };
 
-    // TODO(Joey): replace this logic with clipping rectangle
-    if (minX >= 0 && minY >= 0)
-    {
+        __m128i endClipMasks[] =
+        {
+            _mm_srli_si128(endClipMask, 0*4),
+            _mm_srli_si128(endClipMask, 3*4),
+            _mm_srli_si128(endClipMask, 2*4),
+            _mm_srli_si128(endClipMask, 1*4),            
+        };
+        
+        if(fillRect.MinX & 3)
+        {
+            startClipMask = startClipMasks[fillRect.MinX & 3];
+            fillRect.MinX = fillRect.MinX & ~3;
+        }
+
+        if(fillRect.MaxX & 3)
+        {
+            endClipMask = endClipMasks[fillRect.MaxX & 3];
+            fillRect.MaxX = (fillRect.MaxX & ~3) + 4;
+        }        
+        
+        // SIMD        
+        #define mmSquare(a) _mm_mul_ps(a, a)
+        #define M(a, i) ((float*)&(a))[i]
+        #define Mi(a, i) ((uint32*)&(a))[i]        
+        // SIMD globals
+        const __m128 zero = _mm_set1_ps(0.0f);
+        const __m128 half = _mm_set1_ps(0.5f);
+        const __m128 one = _mm_set1_ps(1.0f);
+        const __m128 four = _mm_set1_ps(4.0f);
+        const __m128i maskFF = _mm_set1_epi32(0xFF);
+        const __m128i maskFFFF = _mm_set1_epi32(0xFFFF);
+        const __m128i maskFF00FF = _mm_set1_epi32(0x00FF00FF);
+        
+        const real32 inv255 = 1.0f / 255.0f;
+        const __m128 inv255_4x = _mm_set1_ps(inv255);
+        
+        const __m128 colorr_4x = _mm_set1_ps(color.r);
+        const __m128 colorg_4x = _mm_set1_ps(color.g);
+        const __m128 colorb_4x = _mm_set1_ps(color.b);
+        const __m128 colora_4x = _mm_set1_ps(color.a);
+        const __m128 maxColorValue = _mm_set1_ps(255.0f);
+            
+        const __m128 mAxisXx   = _mm_set1_ps(axisX.x);
+        const __m128 mAxisXy   = _mm_set1_ps(axisX.y);
+        const __m128 mAxisYx   = _mm_set1_ps(axisY.x);
+        const __m128 mAxisYy   = _mm_set1_ps(axisY.y);
+        const __m128 positionX = _mm_set1_ps(position.x);
+        const __m128 positionY = _mm_set1_ps(position.y);    
+
+        const __m128 invSquareDotAxisX =  _mm_div_ps(one, _mm_add_ps(mmSquare(mAxisXx), mmSquare(mAxisXy))); 
+        const __m128 invSquareDotAxisY =  _mm_div_ps(one, _mm_add_ps(mmSquare(mAxisYx), mmSquare(mAxisYy))); 
+        const __m128 texWidthM2 = _mm_set1_ps((real32)texture->Width - 2);
+        const __m128 texHeightM2 = _mm_set1_ps((real32)texture->Height - 2);
+        const __m128i texturePitch_4x = _mm_set1_epi32(texture->Pitch);
+
+        
+        int minX = fillRect.MinX;
+        int minY = fillRect.MinY;
+        int maxX = fillRect.MaxX;
+        int maxY = fillRect.MaxY;
+                
+        uint32 destPitch = buffer->Width*sizeof(uint32);
+        uint8 *destRow = (uint8*)buffer->Memory + minY*destPitch + minX*sizeof(uint32);
+        
         for (int32 y = minY; y < maxY; ++y)
         {
             uint32 *dest = (uint32*)destRow;
-            __m128i clipMask = startupClipMask;
+            __m128i clipMask = startClipMask;
 
             __m128 pixelPosY = _mm_set1_ps((real32)y);
             __m128 dY = _mm_sub_ps(pixelPosY, positionY);
+            __m128 dYAxisXy = _mm_mul_ps(dY, mAxisXy);
+            __m128 dYAxisYy = _mm_mul_ps(dY, mAxisYy);
   
             __m128 pixelPosX = _mm_set_ps((real32)(minX + 3),
                                           (real32)(minX + 2), 
@@ -169,9 +181,9 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
                 // NOTE(Joey): pre-fetch destination memory at start
                 __m128i originalDest = _mm_loadu_si128((__m128i *)dest);
 
-                __m128 uNominator = _mm_add_ps(_mm_mul_ps(dX, mAxisXx), _mm_mul_ps(dY, mAxisXy));
+                __m128 uNominator = _mm_add_ps(_mm_mul_ps(dX, mAxisXx), dYAxisXy);
                 __m128 U = _mm_mul_ps(invSquareDotAxisX, uNominator);
-                __m128 vNominator = _mm_add_ps(_mm_mul_ps(dX, mAxisYx), _mm_mul_ps(dY, mAxisYy));
+                __m128 vNominator = _mm_add_ps(_mm_mul_ps(dX, mAxisYx), dYAxisYy);
                 __m128 V = _mm_mul_ps(invSquareDotAxisY, vNominator);                  
 
                 // NOTE(Joey): determine from UV whether we write pixels (none if out of range [0, 1])
@@ -180,14 +192,16 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
                                                      _mm_and_ps(_mm_cmpge_ps(V, zero),
                                                      _mm_cmple_ps(V, one))));
                 writeMask = _mm_and_si128(writeMask, clipMask);
-                // writeMask = _mm_set1_epi32(0xFFFFFFFF);
 
                 // NOTE(Joey): after determining write mask, clamp UV and fetch texels
                 U = _mm_min_ps(_mm_max_ps(U, zero), one);
                 V = _mm_min_ps(_mm_max_ps(V, zero), one);
-
-                __m128 tX = _mm_mul_ps(U, texWidthM2);
-                __m128 tY = _mm_mul_ps(V, texHeightM2);
+                
+                // NOTE(Joey): Bias texture coordinates to start on the boundary between 
+                // 0,0 and 1,1 pixels.
+                __m128 tX = _mm_add_ps(_mm_mul_ps(U, texWidthM2), half);
+                __m128 tY = _mm_add_ps(_mm_mul_ps(V, texHeightM2), half);
+                
                 __m128i fetchX_4x = _mm_cvttps_epi32(tX);
                 __m128i fetchY_4x = _mm_cvttps_epi32(tY);
                 __m128 fX = _mm_sub_ps(tX, _mm_cvtepi32_ps(fetchX_4x));
@@ -287,10 +301,6 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
                 __m128 texela = _mm_add_ps(_mm_add_ps(_mm_mul_ps(l0, texelAa), _mm_mul_ps(l1, texelBa)),
                                            _mm_add_ps(_mm_mul_ps(l2, texelCa), _mm_mul_ps(l3, texelDa)));
 
-                // texelr = texelAr;
-                // texelg = texelAg;
-                // texelb = texelAb;
-                // texela = texelAa;
                 // NOTE(Joey): Modulate by color
                 texelr = _mm_mul_ps(texelr, colorr_4x);
                 texelg = _mm_mul_ps(texelg, colorg_4x);
@@ -330,6 +340,11 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
                 dest += 4; 
                 dX = _mm_add_ps(dX, four);
                 clipMask = _mm_set1_epi8(-1);
+                
+                if((x + 8) < maxX)
+                    clipMask = _mm_set1_epi8(-1);
+                else
+                    clipMask = endClipMask;
 
                 EndCPUTiming(1, 4);
             }
@@ -342,8 +357,7 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
 ///////////////////////////////
 //      Render Utility       //
 ///////////////////////////////
-internal void RenderTexture(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, vector4D color = { 1.0f, 1.0f, 1.0f, 1.0f })
+internal void RenderTexture(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, rectangle2Di clipRect, vector4D color = { 1.0f, 1.0f, 1.0f, 1.0f })
 {
-    rectangle2D clipRect = { {0.0f, 0.0f }, { (real32)buffer->Width, (real32)buffer->Height } };
     RenderTexture_(buffer, texture, position, size, { 1.0f, 0.0f }, { 0.0f, 1.0f }, clipRect,  color);
 }

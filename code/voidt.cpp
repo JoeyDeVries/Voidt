@@ -110,16 +110,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //       UPDATE CAMERA
     //////////////////////////////////////////////////////////         
 
-    rectangle2D clipRect = { {0.0f, 0.0f }, { (real32)screenBuffer->Width, (real32)screenBuffer->Height } };
+    rectangle2Di clipRect = { 0, 0, screenBuffer->Width - 0, screenBuffer->Height - 0};
     
     // NOTE(Joey): render testing bed
-    RenderRectangle_(screenBuffer, { 0.0f, 0.0f }, clipRect.Max, { 1.0f, 0.7f, 0.0f, 1.0f });
-    RenderRectangle_(screenBuffer, { 50.0f, 50.0f }, { 100.0f, 100.0f }, { 1.0f, 1.0f, 0.0f, 1.0f });
+    // RenderRectangle_(screenBuffer, { 0.0f, 0.0f }, { (real32)clipRect.MaxX, (real32)clipRect.MaxY }, { 1.0f, 0.7f, 0.0f, 1.0f });
+    // RenderRectangle_(screenBuffer, { 50.0f, 50.0f }, { 100.0f, 100.0f }, { 1.0f, 1.0f, 0.0f, 1.0f });
     
     // background
     vector2D screenSize = { (real32)screenBuffer->Width, (real32)screenBuffer->Height };
     vector2D screenCenter = 0.5f*screenSize;
-    RenderTexture(screenBuffer, &gameState->Background, screenCenter, screenSize);
+    RenderTexture(screenBuffer, &gameState->Background, screenCenter, screenSize, clipRect);
 
     real32 angle = gameState->TimePassed;
     // player
