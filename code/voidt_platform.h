@@ -145,7 +145,6 @@ typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 #define PLATFORM_WRITE_DEBUG_OUTPUT(name) void name(const char *format, ...)
 typedef PLATFORM_WRITE_DEBUG_OUTPUT(platform_write_debug_output);
 
-
 // needs defines from platform function hooks TODO(Joey): clean-up
 struct game_memory
 {
@@ -156,6 +155,12 @@ struct game_memory
     
     int64 TransientStorageSize;
     void* TransientStorage;
+    
+    platform_work_queue *QueueHighPriority;
+    platform_work_queue *QueueLowPriority;
+    
+    platform_add_work_entry *PlatformAddEntry;
+    platform_complete_all_work *PlatformCompleteAllWork;
     
     debug_platform_free_file_memory  *DEBUGPlatformFreeFileMemory;
     debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile;

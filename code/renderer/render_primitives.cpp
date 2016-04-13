@@ -11,13 +11,13 @@
 *******************************************************************/
 
 
-internal void RenderRectangle_(game_offscreen_buffer* buffer, vector2D position, vector2D size, vector4D color)
+internal void RenderRectangle_(Texture *target, vector2D position, vector2D size, vector4D color)
 {
     // NOTE(Joey): correct out-of-bounds
-    real32 fMinX = Clamp(0.0f, buffer->Width,  position.x);
-    real32 fMinY = Clamp(0.0f, buffer->Height, position.y);
-    real32 fMaxX = Clamp(0.0f, buffer->Width,  position.x + size.x);
-    real32 fMaxY = Clamp(0.0f, buffer->Height, position.y + size.y);
+    real32 fMinX = Clamp(0.0f, target->Width,  position.x);
+    real32 fMinY = Clamp(0.0f, target->Height, position.y);
+    real32 fMaxX = Clamp(0.0f, target->Width,  position.x + size.x);
+    real32 fMaxY = Clamp(0.0f, target->Height, position.y + size.y);
     
     // NOTE(Joey): get integer position
     uint32 minX = RoundReal32ToUInt32(fMinX);
@@ -25,9 +25,8 @@ internal void RenderRectangle_(game_offscreen_buffer* buffer, vector2D position,
     uint32 maxX = RoundReal32ToUInt32(fMaxX);
     uint32 maxY = RoundReal32ToUInt32(fMaxY);
     
-    // NOTE(Joey): get memory address of pixel render location in memory
-    uint32 pitch = buffer->Width * sizeof(uint32);
-    uint8 *row = (uint8*)buffer->Memory + minY*pitch + minX*sizeof(uint32);
+    // NOTE(Joey): get memory address of pixel render location in memory;
+    uint8 *row = (uint8*)target->Texels + minY*target->Pitch + minX*sizeof(uint32);
     
     // NOTE(Joey): convert color from floating point to int:0-255
     // NOTE(Joey): we ignore alpha (for now)
@@ -44,12 +43,12 @@ internal void RenderRectangle_(game_offscreen_buffer* buffer, vector2D position,
         {            
             *pixel++ = btColor;
         }
-        row += pitch;
+        row += target->Pitch;
     }
 };
 
 
-internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, vector2D basisX, vector2D basisY, rectangle2Di clipRect, vector4D color)
+internal void RenderTexture_(Texture *target, Texture *texture, vector2D position, vector2D size, vector2D basisX, vector2D basisY, rectangle2Di clipRect, vector4D color)
 {
     // TIMING(0): Entire draw call.
     BeginCPUTiming(0); 
@@ -154,8 +153,8 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
         int maxX = fillRect.MaxX;
         int maxY = fillRect.MaxY;
                 
-        uint32 destPitch = buffer->Width*sizeof(uint32);
-        uint8 *destRow = (uint8*)buffer->Memory + minY*destPitch + minX*sizeof(uint32);
+        uint32 destPitch = target->Width*sizeof(uint32);
+        uint8 *destRow = (uint8*)target->Texels + minY*destPitch + minX*sizeof(uint32);
         
         for (int32 y = minY; y < maxY; ++y)
         {
@@ -357,7 +356,7 @@ internal void RenderTexture_(game_offscreen_buffer* buffer, Texture *texture, ve
 ///////////////////////////////
 //      Render Utility       //
 ///////////////////////////////
-internal void RenderTexture(game_offscreen_buffer* buffer, Texture *texture, vector2D position, vector2D size, rectangle2Di clipRect, vector4D color = { 1.0f, 1.0f, 1.0f, 1.0f })
+internal void RenderTexture(Texture *target, Texture *texture, vector2D position, vector2D size, rectangle2Di clipRect, vector4D color = { 1.0f, 1.0f, 1.0f, 1.0f })
 {
-    RenderTexture_(buffer, texture, position, size, { 1.0f, 0.0f }, { 0.0f, 1.0f }, clipRect,  color);
+    RenderTexture_(target, texture, position, size, { 1.0f, 0.0f }, { 0.0f, 1.0f }, clipRect,  color);
 }

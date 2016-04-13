@@ -788,7 +788,103 @@ internal void Win32ProcessPendingMessages(win32_state *win32State, game_controll
     }
 }
 
+internal void Win32AddWorkEntry(platform_work_queue *queue, platform_work_queue_func *func, void *data)
+{
+    uint32 nextEntryToWrite = (queue->NextEntryToWrite + 1) % ArrayCount(queue->Entries);
+    Assert(nextEntryToWrite != queue->NextEntryToRead);
+    
+    platform_work_queue_entry *entry = queue->Entries + queue->NextEntryToWrite;
+    entry->Func = func;
+    entry->Data = data;
+    
+    ++queue->CompletionGoal;
+    // NOTE(Joey): make sure compiler ensures all previous code finished its writes before continuing.
+    _WriteBarrier(); 
+    queue->NextEntryToWrite = nextEntryToWrite;    
+    
+    ReleaseSemaphore(queue->SemaphoreHandle, 1, 0);
+}
 
+internal bool32 Win32ProcessWorkQueueEntry(platform_work_queue *queue)
+{
+    bool32 shouldSleep = false;
+    
+    uint32 originalNextEntrytoRead = queue->NextEntryToRead;
+    uint32 newNextEntryToRead = (originalNextEntrytoRead + 1) % ArrayCount(queue->Entries);
+    if(originalNextEntrytoRead != queue->NextEntryToWrite)
+    {
+        // NOTE(Joey): compares queue->NextEntryToRead to originalNextEntrytoRead and if they are equal
+        // queue->NextEntryToRead is exchanged with newNextEntryToRead; the function returns the initial
+        // value of queue->NextEntryToRead; if this is the original value as we read before, we know only
+        // one thread incremented the value. If a different thread also reads the NextEntryToRead at aangeroepen
+        // similar time it will have been incremented, and the original value returned is not the same as 
+        // originalNextEntryToRead and thus nothing happens.
+        uint32 index = InterlockedCompareExchange((LONG volatile *)&queue->NextEntryToRead,
+                                                  newNextEntryToRead,
+                                                  originalNextEntrytoRead);
+        if(index == originalNextEntrytoRead)
+        {
+            platform_work_queue_entry entry = queue->Entries[index];
+            entry.Func(queue, entry.Data);
+            InterlockedIncrement((LONG volatile *)&queue->CompletionCount);
+        }
+    }
+    else
+    {
+        shouldSleep = true;
+    }
+    
+    return shouldSleep;
+}
+
+internal void Win32CompleteAllWork(platform_work_queue *queue)
+{
+    while(queue->CompletionGoal != queue->CompletionCount)
+        Win32ProcessWorkQueueEntry(queue);
+    
+    queue->CompletionGoal = 0;
+    queue->CompletionCount = 0;
+}
+
+DWORD threadFunc(LPVOID lpParameter)
+{
+    platform_work_queue *queue = (platform_work_queue *)lpParameter;
+    
+    for(;;)
+    {
+        if(Win32ProcessWorkQueueEntry(queue))
+        {
+            WaitForSingleObjectEx(queue->SemaphoreHandle, INFINITE, FALSE);
+        }
+    }
+    
+    // return 0;
+}
+
+internal void Win32MakeWorkQueue(platform_work_queue *queue, uint32 threadCount)
+{ 
+    queue->CompletionGoal = 0;
+    queue->CompletionCount = 0;
+    
+    queue->NextEntryToRead = 0;
+    queue->NextEntryToWrite = 0;
+    
+    uint32 initialCount = 0;
+    queue->SemaphoreHandle = CreateSemaphoreEx(0, initialCount, threadCount, 0, 0, SEMAPHORE_ALL_ACCESS);
+    
+    for(uint32 i = 0; i < threadCount; ++i)
+    {
+        DWORD threadID;
+        HANDLE threadHandle = CreateThread(0, 0, threadFunc, queue, 0, &threadID);
+        CloseHandle(threadHandle);
+    }
+}
+
+
+void WorkTestEntry(platform_work_queue *queue, void *data)
+{
+    OutputDebugStringA((const char*)data);    
+}
 
 int CALLBACK WinMain(
 	HINSTANCE instance,
@@ -829,13 +925,39 @@ int CALLBACK WinMain(
     // sleep() is more accurate
     UINT desiredSchedulerMS = 1;
     bool32 sleepIsGranular = timeBeginPeriod(desiredSchedulerMS) == TIMERR_NOERROR;
-        
-       
+         
+    
+    // initialize thread work queue(s)
+    platform_work_queue queueHighPriority = {};
+    Win32MakeWorkQueue(&queueHighPriority, 6);
+    platform_work_queue queueLowPriority = {};
+    Win32MakeWorkQueue(&queueLowPriority, 2);
     
     
-    
-    
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 1");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 2");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 3");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 4");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 5");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 6");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 7");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 8");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 9");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 10");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 11");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 12");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 13");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 14");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 15");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 16");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 17");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 18");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 19");
+    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 20");
 
+    Win32CompleteAllWork(&queueHighPriority);
+    
+    Sleep(1000);
     
 	if(RegisterClass(&WindowClass))
 	{

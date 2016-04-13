@@ -91,8 +91,8 @@ internal Texture LoadTexture(thread_context *thread, debug_platform_read_entire_
         bitmap_header *header = (bitmap_header *)readResult.Contents;
         uint32 *pixels = (uint32*)((uint8*)readResult.Contents + header->BitmapOffset);
         result.Texels = pixels;
-        result.Width  = header->Width;
-        result.Height = header->Height;
+        result.Width  = (uint16)header->Width;
+        result.Height = (uint16)header->Height;
         
 
         //Assert(header->Compression == 3);
@@ -142,4 +142,38 @@ internal Texture LoadTexture(thread_context *thread, debug_platform_read_entire_
         }
     }
     return result;
+}
+
+internal Texture CreateEmptyTexture(memory_arena *arena, uint16 width, uint16 height)
+{
+    Texture texture = {};
+    texture.Width = width;
+    texture.Height = height;
+    
+    texture.Pitch = width * sizeof(uint32); // NOTE(Joey): 1 pixel is uint32
+    texture.Texels = (uint32*)PushSize_(arena, height*texture.Pitch);
+    
+    // NOTE(Joey): zero all texels
+    ZeroSize(texture.Texels, height*texture.Pitch);
+    
+    return texture;
+}    
+
+// NOTE(Joey): more efficient direct blit scheme compared to rendering a full-screen texture into the 
+// buffer with normal render code.
+internal void BlitTextureToScreen(game_offscreen_buffer *screenBuffer, Texture *texture)
+{
+    Assert(texture->Width <= screenBuffer->Width);
+    Assert(texture->Height <= screenBuffer->Height);
+    
+    uint32 *dest = (uint32*)screenBuffer->Memory;
+    uint32 *src  = texture->Texels;
+    for(uint16 y = 0; y < texture->Height; ++y)
+    {
+        for(uint16 x = 0; x < texture->Width; ++x)
+        {
+            *dest = *src;            
+            ++dest; ++src;
+        }
+    }    
 }

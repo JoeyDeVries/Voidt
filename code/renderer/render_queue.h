@@ -9,26 +9,25 @@
 ** Creative Commons, either version 4 of the License, or (at your
 ** option) any later version.
 *******************************************************************/
-#ifndef THREAD_WORK_QUEUE_H
-#define THREAD_WORK_QUEUE_H
+#ifndef RENDER_QUEUE_H
+#define RENDER_QUEUE_H
 
-
-typedef WorkQueueCallback(platform_work_queue *queue, void *data);
-
-struct platform_work_entry 
+struct RenderQueueItem
 {
-    WorkQueueCallback *Callback;
-    void *Data;
+    vector2D Position;  // NOTE(Joey): depth in position, or individual uint32 component?
+    uint32   Depth;
+    vector2D Basis[2];
+    vector2D Size;
+    
+    Texture *Texture;
+    vector4D Color;
 };
 
-// circular threaded work queue buffer
-struct platform_work_queue 
-{
-    uint32 volatile Completed;
-    uint32 volatile NextEntryToRead;
-    uint32 volatile NextEntryToWrite;
-    
-    platform_work_entry WorkEntries[256]; 
+struct RenderQueue
+{   
+    uint32 RenderCount;
+    uint32 MaxRenderCount;
+    RenderQueueItem *RenderItems; 
 };
 
 #endif

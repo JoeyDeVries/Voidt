@@ -15,8 +15,8 @@
 // TODO(Joey): convert bitmaps to texture objects
 struct Texture
 {
-    uint32 Width;
-    uint32 Height;
+    uint16 Width;
+    uint16 Height;
     
     uint32 *Texels;        
     uint32 Pitch;

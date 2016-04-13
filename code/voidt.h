@@ -13,15 +13,16 @@
 #define VOIDT_H
 
 #include "common/voidt_common.h"
-#include "common/memory.h"
+#include "common/platform_work_queue.h"
 #include "voidt_platform.h"
+#include "common/memory.h"
 #include "intrinsics.h"
+#include "common/random.h"
 #include "math/math.h"
 
 #include "logging/cpu_timing.h"
 #include "logging/cpu_timing.cpp"
 
-#include "common/random.h"
 #include "common/random.cpp"
 #include "renderer/renderer.h"
 #include "renderer/renderer.cpp"

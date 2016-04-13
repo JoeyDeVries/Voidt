@@ -50,15 +50,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         gameState->Background = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/background.bmp");
         gameState->Player = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/player.bmp");
         gameState->Enemy = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/enemy.bmp");
-       
-        //////////////////////////////////////////////////////////
-        //       WORLD GENERATION 
-        //////////////////////////////////////////////////////////            
-        InitializeArena(&gameState->WorldArena, memory->PermanentStorageSize - sizeof(game_state), (uint8*)memory->PermanentStorage + sizeof(game_state));
+
+        // TODO(Joey): generate procedural world here
+        InitializeArena(&gameState->WorldArena, memory->PermanentStorageSize - sizeof(game_state), (uint8*)memory->PermanentStorage + sizeof(game_state));        
         
         memory->IsInitialized = true;
     }            
-    
+    // NOTE(Joey): initialize transient memory: memory that to be reset/re-used each frame
+    memory_arena transientArena; 
+    InitializeArena(&transientArena, memory->TransientStorageSize, (uint8*)memory->TransientStorage);      
   
     
     //////////////////////////////////////////////////////////
@@ -107,21 +107,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     
     //////////////////////////////////////////////////////////
-    //       UPDATE CAMERA
+    //       RENDER
     //////////////////////////////////////////////////////////         
-
-    rectangle2Di clipRect = { 0, 0, screenBuffer->Width - 0, screenBuffer->Height - 0};
-    
-    // NOTE(Joey): render testing bed
-    // RenderRectangle_(screenBuffer, { 0.0f, 0.0f }, { (real32)clipRect.MaxX, (real32)clipRect.MaxY }, { 1.0f, 0.7f, 0.0f, 1.0f });
-    // RenderRectangle_(screenBuffer, { 50.0f, 50.0f }, { 100.0f, 100.0f }, { 1.0f, 1.0f, 0.0f, 1.0f });
-    
+    Texture screenTexture = CreateEmptyTexture(&transientArena, screenBuffer->Width, screenBuffer->Height);
+    RenderQueue *renderQueue = CreateRenderQueue(&transientArena, 256); 
+        
     // background
     vector2D screenSize = { (real32)screenBuffer->Width, (real32)screenBuffer->Height };
     vector2D screenCenter = 0.5f*screenSize;
-    RenderTexture(screenBuffer, &gameState->Background, screenCenter, screenSize, clipRect);
+    PushTexture(renderQueue, 
+                &gameState->Background, 
+                screenCenter, 
+                0, 
+                screenSize);
 
     real32 angle = gameState->TimePassed;
+    
     // player
     vector2D cameraPos = gameState->CameraPos;
     vector2D playerPos = { -50.0f, 100.0f };
@@ -129,19 +130,39 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     vector2D basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     vector2D basisY = Perpendicular(basisX);
-    RenderTexture_(screenBuffer, &gameState->Player, screenCenter + playerRelCamera, { (real32)gameState->Player.Width, (real32)gameState->Player.Height }, basisX, basisY, clipRect, { 1.0f, 1.0f, 1.0f, 0.5f });
-    
+    PushTexture(renderQueue, 
+                &gameState->Player, 
+                screenCenter + playerRelCamera, 
+                0,
+                { (real32)gameState->Player.Width, (real32)gameState->Player.Height },
+                basisX,
+                basisY,
+                { 1.0f, 1.0f, 1.0f, 0.5f });
+
     // enemey
     vector2D enemyPos = { 350.0f, -150.0f };
     vector2D enemeyRelCamera = enemyPos - cameraPos;
     angle = 42.30f + gameState->TimePassed * 0.1f;
     basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     basisY = Perpendicular(basisX);
-    RenderTexture_(screenBuffer, &gameState->Enemy, screenCenter + enemeyRelCamera, { 200.0f, 200.0f }, basisX, basisY, clipRect, { 1.0f, 1.0f, 1.0f, 1.0f });
+    PushTexture(renderQueue, 
+                &gameState->Enemy,
+                screenCenter + enemeyRelCamera,
+                0,
+                { 200.0f, 200.0f }, 
+                basisX, 
+                basisY, 
+                { 1.0f, 1.0f, 1.0f, 1.0f });
+                
+    // render to target
+    RenderPass(renderQueue, &screenTexture);
+
         
     //////////////////////////////////////////////////////////
     //       OUTPUT 
-    //////////////////////////////////////////////////////////      
+    //////////////////////////////////////////////////////////
+    BlitTextureToScreen(screenBuffer, &screenTexture);
+    
 
     PrintCPUTiming(0);
     PrintCPUTiming(1);

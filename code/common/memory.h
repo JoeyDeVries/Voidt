@@ -43,7 +43,7 @@ inline void* PushSize_(memory_arena *arena, memory_index size)
     return address;
 }
 #define ZeroStruct(instance) ZeroSize(sizeof(instance), &instance)
-inline void ZeroSize(memory_index size, void *ptr)
+inline void ZeroSize(void *ptr, memory_index size)
 {
     // TODO(Joey): check for performance
     uint8 *byte = (uint8*)ptr;
