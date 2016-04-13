@@ -14,6 +14,7 @@
 internal RenderQueue *CreateRenderQueue(memory_arena *arena, uint32 maxRenderCount)
 {
     RenderQueue *queue = PushStruct(arena, RenderQueue);       
+    queue->RenderCount = 0;
     queue->MaxRenderCount = maxRenderCount;
     queue->RenderItems = PushArray(arena, maxRenderCount, RenderQueueItem);    
     

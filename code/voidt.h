@@ -58,4 +58,5 @@ struct game_state
     vector2D CameraPos;
 };
 
+
 #endif

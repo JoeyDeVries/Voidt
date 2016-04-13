@@ -11,7 +11,10 @@
 *******************************************************************/
 
 
-internal void RenderRectangle_(Texture *target, vector2D position, vector2D size, vector4D color)
+internal void RenderRectangle_(Texture *target, 
+                               vector2D position, 
+                               vector2D size, 
+                               vector4D color)
 {
     // NOTE(Joey): correct out-of-bounds
     real32 fMinX = Clamp(0.0f, target->Width,  position.x);
@@ -48,7 +51,14 @@ internal void RenderRectangle_(Texture *target, vector2D position, vector2D size
 };
 
 
-internal void RenderTexture_(Texture *target, Texture *texture, vector2D position, vector2D size, vector2D basisX, vector2D basisY, rectangle2Di clipRect, vector4D color)
+internal void RenderTexture_(Texture *target, 
+                             Texture *texture, 
+                             vector2D position, 
+                             vector2D size, 
+                             vector2D basisX, 
+                             vector2D basisY, 
+                             rectangle2Di clipRect, 
+                             vector4D color)
 {
     // TIMING(0): Entire draw call.
     BeginCPUTiming(0); 
@@ -356,7 +366,12 @@ internal void RenderTexture_(Texture *target, Texture *texture, vector2D positio
 ///////////////////////////////
 //      Render Utility       //
 ///////////////////////////////
-internal void RenderTexture(Texture *target, Texture *texture, vector2D position, vector2D size, rectangle2Di clipRect, vector4D color = { 1.0f, 1.0f, 1.0f, 1.0f })
+internal void RenderTexture(Texture *target, 
+                            Texture *texture, 
+                            vector2D position, 
+                            vector2D size, 
+                            rectangle2Di clipRect, 
+                            vector4D color = { 1.0f, 1.0f, 1.0f, 1.0f })
 {
     RenderTexture_(target, texture, position, size, { 1.0f, 0.0f }, { 0.0f, 1.0f }, clipRect,  color);
 }

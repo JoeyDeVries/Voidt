@@ -1029,6 +1029,11 @@ int CALLBACK WinMain(
             gameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
             gameMemory.PlatformWriteDebugOutput     = Win32WriteDebugOutput;
             
+            gameMemory.WorkQueueHighPriority        = &queueHighPriority;
+            gameMemory.WorkQueueLowPriority         = &queueLowPriority;
+            gameMemory.PlatformAddWorkEntry         = Win32AddWorkEntry;
+            gameMemory.PlatformCompleteAllWork      = Win32CompleteAllWork;
+            
             for(int i = 0; i < 4; ++i)
             {
                 win32_replay_buffer *replayBuffer = &win32State.ReplayBuffers[i];

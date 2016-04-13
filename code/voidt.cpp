@@ -50,6 +50,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         gameState->Background = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/background.bmp");
         gameState->Player = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/player.bmp");
         gameState->Enemy = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/enemy.bmp");
+        
+        // set function pointers for Voidt module
+        PlatformAddWorkEntry    = memory->PlatformAddWorkEntry;
+        PlatformCompleteAllWork = memory->PlatformCompleteAllWork;
 
         // TODO(Joey): generate procedural world here
         InitializeArena(&gameState->WorldArena, memory->PermanentStorageSize - sizeof(game_state), (uint8*)memory->PermanentStorage + sizeof(game_state));        
@@ -155,7 +159,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 { 1.0f, 1.0f, 1.0f, 1.0f });
                 
     // render to target
-    RenderPass(renderQueue, &screenTexture);
+    RenderPass(memory->WorkQueueHighPriority, renderQueue, &screenTexture);
 
         
     //////////////////////////////////////////////////////////

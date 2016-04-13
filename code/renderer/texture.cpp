@@ -21,7 +21,9 @@ inline vector4D TexelToVector4D(uint32 *texel)
 
 // TODO(Joey): work out overall engine structure before implementing details
 // TODO(Joey): work out wrapping modes w/ uv coordinates out of bound
-internal vector4D TextureSample(Texture *texture, vector2D uv, bool32 bilinear = true)
+internal vector4D TextureSample(Texture *texture, 
+                                vector2D uv, 
+                                bool32 bilinear = true)
 {
     // SEE https://hero.handmadedev.org/videos/game-architecture/day093.html for implementation.    
     /* NOTE(Joey): How texture sampling works:
@@ -81,7 +83,9 @@ internal vector4D TextureSample(Texture *texture, vector2D uv, bool32 bilinear =
 
 
 // .BMP Texture loading
-internal Texture LoadTexture(thread_context *thread, debug_platform_read_entire_file *readEntireFile, char *fileName)
+internal Texture LoadTexture(thread_context *thread, 
+                            debug_platform_read_entire_file *readEntireFile, 
+                            char *fileName)
 {
     Texture result = {};
     
@@ -144,7 +148,9 @@ internal Texture LoadTexture(thread_context *thread, debug_platform_read_entire_
     return result;
 }
 
-internal Texture CreateEmptyTexture(memory_arena *arena, uint16 width, uint16 height)
+internal Texture CreateEmptyTexture(memory_arena *arena, 
+                                    uint16 width, 
+                                    uint16 height)
 {
     Texture texture = {};
     texture.Width = width;

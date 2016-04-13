@@ -156,10 +156,10 @@ struct game_memory
     int64 TransientStorageSize;
     void* TransientStorage;
     
-    platform_work_queue *QueueHighPriority;
-    platform_work_queue *QueueLowPriority;
+    platform_work_queue *WorkQueueHighPriority;
+    platform_work_queue *WorkQueueLowPriority;
     
-    platform_add_work_entry *PlatformAddEntry;
+    platform_add_work_entry *PlatformAddWorkEntry;
     platform_complete_all_work *PlatformCompleteAllWork;
     
     debug_platform_free_file_memory  *DEBUGPlatformFreeFileMemory;
@@ -171,6 +171,9 @@ struct game_memory
 // NOTE(Joey): encapsulate this without using globals, but still keep it accesible
 // for all the game-code (logging tool)
 global_variable platform_write_debug_output *GlobalPlatformWriteDebugOutput;
+global_variable platform_add_work_entry     *PlatformAddWorkEntry;
+global_variable platform_complete_all_work  *PlatformCompleteAllWork;
+
 
 // ----------------------------------------------------------------------------
 //      Services that the game provides to the platform layer
