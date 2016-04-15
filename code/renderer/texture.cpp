@@ -84,8 +84,8 @@ internal vector4D TextureSample(Texture *texture,
 
 // .BMP Texture loading
 internal Texture LoadTexture(thread_context *thread, 
-                            debug_platform_read_entire_file *readEntireFile, 
-                            char *fileName)
+                             debug_platform_read_entire_file *readEntireFile, 
+                             char *fileName)
 {
     Texture result = {};
     

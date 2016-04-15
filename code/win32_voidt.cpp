@@ -933,32 +933,7 @@ int CALLBACK WinMain(
     platform_work_queue queueLowPriority = {};
     Win32MakeWorkQueue(&queueLowPriority, 2);
     
-    
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 1");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 2");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 3");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 4");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 5");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 6");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 7");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 8");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 9");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 10");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 11");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 12");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 13");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 14");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 15");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 16");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 17");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 18");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 19");
-    Win32AddWorkEntry(&queueHighPriority, WorkTestEntry, "\nNummer 20");
-
-    Win32CompleteAllWork(&queueHighPriority);
-    
-    Sleep(1000);
-    
+        
 	if(RegisterClass(&WindowClass))
 	{
         // NOTE(Joey): calculate client size of window and pass to window creation routine        
@@ -986,7 +961,7 @@ int CALLBACK WinMain(
             ReleaseDC(Window, dc);
             if(win32RefreshRate > 1)
                 monitorRefreshHz = win32RefreshRate;
-            int gameUpdateHz = monitorRefreshHz / 2;
+            real32 gameUpdateHz = (real32)(monitorRefreshHz / 2.0f);
             real32 targetSecondsPerFrame = 1.0f / (real32)gameUpdateHz;
     
     
@@ -1003,7 +978,7 @@ int CALLBACK WinMain(
             soundOutput.bytesPerSample      = sizeof(int16) * 2;
             soundOutput.secondaryBufferSize = soundOutput.samplesPerSecond * soundOutput.bytesPerSample;
             // soundOutput.latencySampleCount  = 3 * (soundOutput.samplesPerSecond / gameUpdateHz);
-            soundOutput.SafetyBytes         = (soundOutput.samplesPerSecond * soundOutput.bytesPerSample / gameUpdateHz) / 2; 
+            soundOutput.SafetyBytes         = (int)(((real32)soundOutput.samplesPerSecond*(real32)soundOutput.bytesPerSample / gameUpdateHz) / 2.0f);
 
             Win32InitDSound(Window, soundOutput.samplesPerSecond, soundOutput.secondaryBufferSize); 
             Win32ClearBuffer(&soundOutput);
@@ -1210,13 +1185,13 @@ int CALLBACK WinMain(
                         */
                         if(!soundIsValid)
                         {
-                            soundOutput.runningSampleIndex = writeCursor;
+                            soundOutput.runningSampleIndex = writeCursor / soundOutput.bytesPerSample;
                             soundIsValid = true;
                         }                                                
                         
                         DWORD byteToLock = (soundOutput.runningSampleIndex * soundOutput.bytesPerSample) % soundOutput.secondaryBufferSize;
                         
-                        DWORD expectedSoundBytesPerFrame = (soundOutput.samplesPerSecond * soundOutput.bytesPerSample) / gameUpdateHz;
+                        DWORD expectedSoundBytesPerFrame = (int)(((real32)soundOutput.samplesPerSecond * soundOutput.bytesPerSample) / gameUpdateHz);
 
                         real32 secondsLeftUntilFlip = targetSecondsPerFrame - fromBeginToAudioSrconds;
                         DWORD expectedBytesUntilFlip = (DWORD)((secondsLeftUntilFlip / targetSecondsPerFrame) * (real32)expectedSoundBytesPerFrame);                        
@@ -1324,7 +1299,7 @@ int CALLBACK WinMain(
                     real64 mcpf          = (real64)(cyclesElapsed / (1000.0f * 1000.0f)); // mega-cycles per frame                    
                     char charBuffer[256];
                     _snprintf_s(charBuffer, sizeof(charBuffer), "%.02fms/f / %.02ff/s  -  %.02fmc/f\n", msPerFrame, fps, mcpf); 
-                    // OutputDebugStringA(charBuffer);
+                    OutputDebugStringA(charBuffer);
   
                 }
             }

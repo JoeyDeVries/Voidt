@@ -61,7 +61,7 @@ internal void RenderTexture_(Texture *target,
                              vector4D color)
 {
     // TIMING(0): Entire draw call.
-    BeginCPUTiming(0); 
+    // BeginCPUTiming(0); 
     
      // NOTE(Joey): calculate scaled coordinate basis
     vector2D axisX = size.x * basisX;
@@ -185,7 +185,7 @@ internal void RenderTexture_(Texture *target,
             for (int32 x = minX; x < maxX; x += 4)
             {
                 // TIMING(1): Per pixel CPU timing
-                BeginCPUTiming(1);
+                // BeginCPUTiming(1);
 
                 // NOTE(Joey): pre-fetch destination memory at start
                 __m128i originalDest = _mm_loadu_si128((__m128i *)dest);
@@ -355,12 +355,12 @@ internal void RenderTexture_(Texture *target,
                 else
                     clipMask = endClipMask;
 
-                EndCPUTiming(1, 4);
+                // EndCPUTiming(1, 4);
             }
             destRow += destPitch;
         }
     }
-    EndCPUTiming(0);
+    // EndCPUTiming(0);
 }
 
 ///////////////////////////////

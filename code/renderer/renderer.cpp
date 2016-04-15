@@ -69,6 +69,8 @@ internal void RenderPass(platform_work_queue *workQueue, RenderQueue *renderQueu
     uint16 tileHeight = target->Height / tileCountY;
     tileWidth = ((tileWidth + 3) / 4) * 4; // memory alignment
     
+    Assert(((uintptr_t)target->Texels & 15) == 0); // make sure memory is aligned
+    
     // store TiledRenderData structs here to keep them in the stack
     TiledRenderData tiledData[tileCountX * tileCountY];
     uint16 tileCount = 0;

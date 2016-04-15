@@ -26,6 +26,8 @@
 #include "common/random.cpp"
 #include "renderer/renderer.h"
 #include "renderer/renderer.cpp"
+#include "audio/sound.h"
+#include "audio/sound.cpp"
 
 
 
@@ -56,6 +58,11 @@ struct game_state
     
     real32 TimePassed;
     vector2D CameraPos;
+    
+    Sound TestSound;
+    uint32 SoundSampleIndex;
+    
+    real64 tSine;
 };
 
 

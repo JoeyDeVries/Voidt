@@ -27,19 +27,22 @@ inline void InitializeArena(memory_arena *arena, memory_index size, void *base)
     arena->Used = 0;
 }
 
-#define PushStruct(arena, type) (type*)PushSize_(arena, sizeof(type))
-#define PushArray(arena, count, type) (type*)PushSize_(arena, (count)*sizeof(type))
-inline void* PushSize_(memory_arena *arena, memory_index size)
-{
+#define PushStruct(arena, type, ...) (type*)PushSize_(arena, sizeof(type), ## __VA_ARGS__)
+#define PushArray(arena, count, type, ...) (type*)PushSize_(arena, (count)*sizeof(type), ## __VA_ARGS__)
+inline void* PushSize_(memory_arena *arena, memory_index size, memory_index alignment = 4)
+{       
+    memory_index resultPointer = (memory_index)arena->Base + arena->Used;
+    memory_index alignmentOffset = 0;
+    
+    memory_index alignmentMask = alignment - 1;
+    if(resultPointer & alignmentMask)
+        alignmentOffset = alignment - (resultPointer & alignmentMask);
+    size += alignmentOffset;
+    
     Assert(arena->Used + size <= arena->Size);
-    void* address = arena->Base + arena->Used;
     arena->Used += size;
     
-    // clear to zero (redundant for now)    
-    // ZeroSize(size, address);
-    // for(uint8* memory = (uint8*)address; memory < arena->Base + arena->Used + size; ++memory)
-        // *memory = 0;
-    
+    void* address = (void*)(resultPointer + alignmentOffset);           
     return address;
 }
 #define ZeroStruct(instance) ZeroSize(sizeof(instance), &instance)
