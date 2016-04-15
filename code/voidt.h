@@ -62,7 +62,7 @@ struct game_state
     Sound TestSound;
     uint32 SoundSampleIndex;
     
-    real64 tSine;
+    real32 tSine;
 };
 
 

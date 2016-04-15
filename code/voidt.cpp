@@ -21,18 +21,21 @@ void GameRender(game_offscreen_buffer *buffer, game_state *state)
 void GameOutputSound(game_sound_output_buffer *soundBuffer, game_state *gameState, int toneHz)
 {
     uint16 toneVolume = 3000;
-    uint16 wavePeriod = (uint16)(soundBuffer->SamplesPerSecond / toneHz);
+    int wavePeriod = soundBuffer->SamplesPerSecond / toneHz;
     
     int16 *sampleOut = soundBuffer->Samples;
     for(int sampleIndex = 0; sampleIndex < soundBuffer->SampleCount; ++sampleIndex)
     {
-        real32 sineValue = sinf((real32)gameState->tSine);
+        real32 sineValue = sinf(gameState->tSine);
         int16 sampleValue = (int16)(sineValue * toneVolume);
         // sampleValue = 0; // disable
         *sampleOut++ = sampleValue;
         *sampleOut++ = sampleValue;
         
-        gameState->tSine += 2.0f * Pi32 * 1.0f / wavePeriod;
+        gameState->tSine += (2.0f * Pi32) / (real32)wavePeriod;
+        
+        if(gameState->tSine >= 2.0f * Pi32)
+            gameState->tSine -= 2.0f * Pi32;
     }        
 } 
 
@@ -51,7 +54,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         gameState->Player = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/player.bmp");
         gameState->Enemy = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/enemy.bmp");
         
-        gameState->TestSound = LoadWAV(memory->DEBUGPlatformReadEntireFile, "audio/music_test.wav");
+        gameState->TestSound = LoadWAV(memory->DEBUGPlatformReadEntireFile, "audio/music.wav");
+        
+        gameState->tSine = 0.0f;
         
         // set function pointers for Voidt module
         PlatformAddWorkEntry    = memory->PlatformAddWorkEntry;
@@ -179,20 +184,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
 {
     game_state *gameState = (game_state*)memory->PermanentStorage;      
-    GameOutputSound(soundBuffer, gameState, 412);
+    // GameOutputSound(soundBuffer, gameState, 412);
       
-    // int16 *sampleOut = soundBuffer->Samples;
-    // for(int sampleIndex = 0; sampleIndex < soundBuffer->SampleCount; ++sampleIndex)
-    // {        
-        // int16 sample = 0;
-        // if(gameState->TestSound.SampleCount > 0)
-        // {
-            // uint32 soundSampleIndex = (gameState->SoundSampleIndex + sampleIndex) % gameState->TestSound.SampleCount;
-            // sample = gameState->TestSound.Samples[0][soundSampleIndex];
-        // }
+    int16 *sampleOut = soundBuffer->Samples;
+    for(int sampleIndex = 0; sampleIndex < soundBuffer->SampleCount; ++sampleIndex)
+    {        
+        int16 sample = 0;
+        if(gameState->TestSound.SampleCount > 0)
+        {
+            uint32 soundSampleIndex = (gameState->SoundSampleIndex + sampleIndex) % gameState->TestSound.SampleCount;
+            sample = gameState->TestSound.Samples[0][soundSampleIndex];
+        }
       
-        // *sampleOut++ = sample;
-        // *sampleOut++ = sample;
-    // }        
-    // gameState->SoundSampleIndex += soundBuffer->SampleCount;
+        *sampleOut++ = sample;
+        *sampleOut++ = sample;
+    }        
+    gameState->SoundSampleIndex += soundBuffer->SampleCount;
 }

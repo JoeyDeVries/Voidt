@@ -286,6 +286,7 @@ internal void Win32InitDSound(HWND window, int32 samplesPerSecond, int32 bufferS
 
             bufferDescription = {};
             bufferDescription.dwSize  = sizeof(bufferDescription);
+            bufferDescription.dwFlags = DSBCAPS_GETCURRENTPOSITION2;
             bufferDescription.dwBufferBytes = bufferSize;
             bufferDescription.lpwfxFormat = &waveFormat;
             
@@ -978,7 +979,7 @@ int CALLBACK WinMain(
             soundOutput.bytesPerSample      = sizeof(int16) * 2;
             soundOutput.secondaryBufferSize = soundOutput.samplesPerSecond * soundOutput.bytesPerSample;
             // soundOutput.latencySampleCount  = 3 * (soundOutput.samplesPerSecond / gameUpdateHz);
-            soundOutput.SafetyBytes         = (int)(((real32)soundOutput.samplesPerSecond*(real32)soundOutput.bytesPerSample / gameUpdateHz) / 2.0f);
+            soundOutput.SafetyBytes         = (int)(((real32)soundOutput.samplesPerSecond*(real32)soundOutput.bytesPerSample / gameUpdateHz) / 3.0f);
 
             Win32InitDSound(Window, soundOutput.samplesPerSecond, soundOutput.secondaryBufferSize); 
             Win32ClearBuffer(&soundOutput);
@@ -1034,6 +1035,7 @@ int CALLBACK WinMain(
                 
                 win32_game_code game = Win32LoadGameCode(sourceGameCodeDLLFullPath, tempGameCodeDLLFullPath, lockGameCodeDLLFullPath);
                 
+
                 uint64 lastCycleCount = __rdtsc();                       
                 while(GlobalRunning)
                 {              
@@ -1167,7 +1169,7 @@ int CALLBACK WinMain(
                     //       AUDIO 
                     //////////////////////////////////////////////////////////              
                     LARGE_INTEGER audioWallClock = Win32GetWallClock();
-                    real32 fromBeginToAudioSrconds = Win32GetSecondsElapsed(flipWallClock, audioWallClock);
+                    real32 fromBeginToAudioSeconds = Win32GetSecondsElapsed(flipWallClock, audioWallClock);
                     
                     DWORD playCursor;
                     DWORD writeCursor; // safest distance from playCursor to write to
@@ -1191,9 +1193,9 @@ int CALLBACK WinMain(
                         
                         DWORD byteToLock = (soundOutput.runningSampleIndex * soundOutput.bytesPerSample) % soundOutput.secondaryBufferSize;
                         
-                        DWORD expectedSoundBytesPerFrame = (int)(((real32)soundOutput.samplesPerSecond * soundOutput.bytesPerSample) / gameUpdateHz);
+                        DWORD expectedSoundBytesPerFrame = (int)((real32)(soundOutput.samplesPerSecond * soundOutput.bytesPerSample) / gameUpdateHz);
 
-                        real32 secondsLeftUntilFlip = targetSecondsPerFrame - fromBeginToAudioSrconds;
+                        real32 secondsLeftUntilFlip = targetSecondsPerFrame - fromBeginToAudioSeconds;
                         DWORD expectedBytesUntilFlip = (DWORD)((secondsLeftUntilFlip / targetSecondsPerFrame) * (real32)expectedSoundBytesPerFrame);                        
                         DWORD expectedFrameBoundaryByte = playCursor + expectedBytesUntilFlip;
 
@@ -1259,6 +1261,7 @@ int CALLBACK WinMain(
                     real32 secondsElapsedForFrame = workSecondsElapsed;
                     if(secondsElapsedForFrame < targetSecondsPerFrame)
                     {
+                        #if 0
                         if(sleepIsGranular)
                         {
                             DWORD sleepMS = (DWORD)(1000.0f * (targetSecondsPerFrame - secondsElapsedForFrame) - 0.5f); // - 0.5 due to sleep not accurate enough on exact ms
@@ -1268,11 +1271,19 @@ int CALLBACK WinMain(
                         {                 
                             secondsElapsedForFrame = Win32GetSecondsElapsed(lastCounter, Win32GetWallClock());
                         }
+                        #endif
+                        DWORD sleepMS = (DWORD)(1000.0f * (targetSecondsPerFrame - secondsElapsedForFrame));
+                        if(sleepMS > 0)                                
+                            Sleep(sleepMS);
+                        while(secondsElapsedForFrame < targetSecondsPerFrame)
+                        {                 
+                            secondsElapsedForFrame = Win32GetSecondsElapsed(lastCounter, Win32GetWallClock());
+                        }
                     }
                     else
                     {   // Missed frame rate! 
                         // TODO(Joey): diagnostics - log this!                        
-                    }
+                    }                    
                                      
                     // get timer stats at end of frame
                     LARGE_INTEGER endCounter = Win32GetWallClock();
@@ -1285,6 +1296,7 @@ int CALLBACK WinMain(
                     Win32DisplayBufferInWindow(DeviceContext, &GlobalBackBuffer, Dimension.Width, Dimension.Height);           
                     ReleaseDC(Window, DeviceContext);
                   
+                    flipWallClock = Win32GetWallClock();
                   
                     // swap input
                     game_input *temp = newInput;
