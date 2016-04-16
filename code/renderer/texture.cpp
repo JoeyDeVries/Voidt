@@ -83,13 +83,12 @@ internal vector4D TextureSample(Texture *texture,
 
 
 // .BMP Texture loading
-internal Texture LoadTexture(thread_context *thread, 
-                             debug_platform_read_entire_file *readEntireFile, 
+internal Texture LoadTexture(debug_platform_read_entire_file *readEntireFile, 
                              char *fileName)
 {
     Texture result = {};
     
-    debug_read_file_result readResult = readEntireFile(thread, fileName);    
+    debug_read_file_result readResult = readEntireFile(fileName);    
     if(readResult.ContentSize != 0)
     {
         bitmap_header *header = (bitmap_header *)readResult.Contents;

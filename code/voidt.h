@@ -29,6 +29,9 @@
 #include "audio/sound.h"
 #include "audio/sound.cpp"
 
+#include "common/asset.h"
+#include "common/asset.cpp"
+
 
 
 inline game_controller_input* GetController(game_input *input, uint32 controllerIndex)
@@ -72,17 +75,7 @@ struct TransientState
     memory_arena TransientArena;
         
     // assets
-    Texture Player;
-    Texture Enemy;
-    Texture Background;
-    
-    // TODO(Joey): build asset management system for storing assets (in permanent storage?)
-    // set maximum bound (either in count or memory); re-load assets asyncrhonously when evicted.
-    Sound Music;
-    Sound Gun;
-    Sound Explosion;
-    
-    
+    GameAssets Assets;        
 };
 
 

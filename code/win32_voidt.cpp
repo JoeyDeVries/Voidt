@@ -114,7 +114,7 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
                 }
                 else
                 {
-                    DEBUGPlatformFreeFileMemory(thread, result.Contents);
+                    DEBUGPlatformFreeFileMemory(result.Contents);
                     result.ContentSize = 0;
                 }
             }

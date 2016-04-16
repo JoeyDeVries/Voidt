@@ -50,16 +50,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                         (uint8*)memory->TransientStorage + sizeof(TransientState));
         
         // allocate game assets
-        transientState->Background = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/background.bmp");
-        transientState->Player = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/player.bmp");
-        transientState->Enemy = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/enemy.bmp");
+        transientState->Assets.Arena = &transientState->TransientArena;
+        transientState->Assets.LoadedTextureCount = 0;
+        transientState->Assets.LoadedSoundCount = 0;
+        transientState->Assets.DEBUGPlatformReadEntireFile = memory->DEBUGPlatformReadEntireFile;
+        transientState->Assets.WorkQueue = memory->WorkQueueLowPriority;
         
-        transientState->Music = LoadWAV(memory->DEBUGPlatformReadEntireFile, "audio/music.wav");
-        transientState->Gun = LoadWAV(memory->DEBUGPlatformReadEntireFile, "audio/gun.wav");
-        transientState->Explosion = LoadWAV(memory->DEBUGPlatformReadEntireFile, "audio/explosion.wav");
+        // pre-fetch 
+        PreFetchTexture(&transientState->Assets, "space/background.bmp");
+        PreFetchTexture(&transientState->Assets, "space/player.bmp");
+        PreFetchTexture(&transientState->Assets, "space/enemy.bmp");
+
+        PreFetchSound(&transientState->Assets, "audio/music.wav", true);
+        PreFetchSound(&transientState->Assets, "audio/gun.wav");
+        PreFetchSound(&transientState->Assets, "audio/explosion.wav");               
         
-        
-        PlaySound(&gameState->Mixer, &transientState->Music, 0.75f);        
+        PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.75f);        
          
         transientState->IsInitialized = true;
     }
@@ -100,12 +106,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             if(controller->RightShoulder.EndedDown && gameState->FireDelay >= 0.2f)                
             {
-                PlaySound(&gameState->Mixer, &transientState->Gun, 0.5f);
+                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/gun.wav"), 0.55f);
                 gameState->FireDelay = 0.0f;
             }
             if (controller->LeftShoulder.EndedDown && gameState->ExplosionDelay >= 1.0f)
             {
-                PlaySound(&gameState->Mixer, &transientState->Explosion, 0.5f);
+                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/explosion.wav"), 0.55f);
                 gameState->ExplosionDelay = 0.0f;
             }
         }
@@ -116,6 +122,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //////////////////////////////////////////////////////////
     //       RENDER
     //////////////////////////////////////////////////////////         
+    // TODO(Joey): make sure no other allocations happen in transient arena in the meantime
+    // like: allocation of assets when requested (make sure this happens in different arena 
+    // otherwise).
     TempMemory tempRenderMemory = BeginTempMemory(transientArena);
     
     Texture screenTexture = CreateEmptyTexture(transientArena, screenBuffer->Width, screenBuffer->Height);
@@ -125,7 +134,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     vector2D screenSize = { (real32)screenBuffer->Width, (real32)screenBuffer->Height };
     vector2D screenCenter = 0.5f*screenSize;
     PushTexture(renderQueue, 
-                &transientState->Background, 
+                GetTexture(&transientState->Assets, "space/background.bmp"),
                 screenCenter, 
                 0, 
                 screenSize);
@@ -140,22 +149,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     vector2D basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     vector2D basisY = Perpendicular(basisX);
     PushTexture(renderQueue, 
-                &transientState->Player, 
+                GetTexture(&transientState->Assets, "space/player.bmp"), 
                 screenCenter + playerRelCamera, 
                 0,
-                { (real32)transientState->Player.Width, (real32)transientState->Player.Height },
+                { (real32)80, (real32)100 },
                 basisX,
                 basisY,
                 { 1.0f, 1.0f, 1.0f, 0.5f });
 
-    // enemey
+    // enemy
     vector2D enemyPos = { 350.0f, -150.0f };
     vector2D enemeyRelCamera = enemyPos - cameraPos;
     angle = 42.30f + gameState->TimePassed * 0.1f;
     basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     basisY = Perpendicular(basisX);
     PushTexture(renderQueue, 
-                &transientState->Enemy,
+                GetTexture(&transientState->Assets, "space/enemy.bmp"),
                 screenCenter + enemeyRelCamera,
                 0,
                 { 200.0f, 200.0f }, 

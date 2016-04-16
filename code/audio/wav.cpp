@@ -69,7 +69,7 @@ internal Sound LoadWAV(debug_platform_read_entire_file *readEntireFile, char *fi
 {
     Sound result = {};
     
-    debug_read_file_result readResult = readEntireFile(0, fileName);    
+    debug_read_file_result readResult = readEntireFile(fileName);    
     if(readResult.ContentSize != 0)
     {
         WAVEHeader *header = (WAVEHeader*)readResult.Contents;

@@ -40,7 +40,7 @@ struct SoundMixer
     memory_arena MixerArena;
 
     PlayingSound *FirstPlayingSound;
-    PlayingSound *FirstFreePlayingSound; // NOTE(Joey): re-use previously de-queued playing sounds memory
+    PlayingSound *FirstFreePlayingSound; // NOTE(Joey): re-use previously de-queued playing sounds memory    
 };
 
 
