@@ -17,6 +17,8 @@ struct memory_arena
     uint8 *Base;
     memory_index Size;
     memory_index Used;
+    
+    int32 TempCount;
 };
 
 
@@ -56,5 +58,30 @@ inline void ZeroSize(void *ptr, memory_index size)
     }
 }
 
+
+// temp memory (stack-based allocation)
+struct TempMemory
+{
+    memory_arena *Arena;
+    memory_index  Used;
+};
+
+inline TempMemory BeginTempMemory(memory_arena *arena)
+{
+    TempMemory tempMemory;
+    tempMemory.Arena = arena;
+    tempMemory.Used = arena->Used;
+    arena->TempCount++;
+    return tempMemory;
+}
+
+inline void EndTempMemory(TempMemory tempMemory)
+{
+    Assert(tempMemory.Arena->Used >= tempMemory.Used);
+    Assert(tempMemory.Arena->TempCount > 0);
+    
+    tempMemory.Arena->Used = tempMemory.Used;
+    tempMemory.Arena->TempCount--;
+}
 
 #endif

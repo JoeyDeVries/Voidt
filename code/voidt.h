@@ -50,6 +50,7 @@ struct controlled_player
 struct game_state
 {
     memory_arena WorldArena;       
+    memory_arena AssetsArena;       
     controlled_player ControlledPlayers[ArrayCount(((game_input*)0)->Controllers)];
 
     Texture Player;
@@ -59,7 +60,17 @@ struct game_state
     real32 TimePassed;
     vector2D CameraPos;
     
-    Sound TestSound;
+    // audio/sound
+    SoundMixer Mixer;
+    // TODO(Joey): build asset management system for storing assets (in permanent storage?)
+    // set maximum bound (either in count or memory); re-load assets asyncrhonously when evicted.
+    Sound Music;
+    Sound Gun;
+    Sound Explosion;
+    
+    real32 FireDelay;
+    real32 ExplosionDelay;
+    
     uint32 SoundSampleIndex;
     
     real32 tSine;

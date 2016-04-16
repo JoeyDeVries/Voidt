@@ -10,3 +10,27 @@
 ** option) any later version.
 *******************************************************************/
 
+internal void PlaySound(SoundMixer *mixer, Sound *sound, real32 volume = 1.0f, bool32 loop = false)
+{
+    // NOTE(Joey): get new|free PlayingSound at top of linked list
+    PlayingSound *playingSound = 0;
+    if(mixer->FirstFreePlayingSound)
+    {
+        playingSound = mixer->FirstFreePlayingSound;
+        mixer->FirstFreePlayingSound = playingSound->Next;
+        playingSound->Next = 0;
+    }
+    else
+    {
+        playingSound = PushStruct(&mixer->MixerArena, PlayingSound);        
+    }
+    playingSound->Next = mixer->FirstPlayingSound;
+    mixer->FirstPlayingSound = playingSound;
+    
+    // NOTE(Joey): initialize playing sound
+    playingSound->Source = sound; 
+    playingSound->SamplesPlayed = 0;
+    playingSound->Loop = loop;
+    playingSound->Volume[0] = volume;
+    playingSound->Volume[1] = volume;            
+}

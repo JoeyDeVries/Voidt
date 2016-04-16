@@ -19,14 +19,29 @@ struct Sound
     int16 *Samples[2];           
 };
 
-struct Mixer 
-{
-    uint32 RunningSampleIndex;
-    
-    Sound SoundsPlaying[16];
-};
-
 #include "wav.h"
 #include "wav.cpp"
+
+struct PlayingSound
+{
+    // TODO(Joey): replace with unique Asset ID scheme | GUID
+    // I don't want to chase too much pointers.
+    Sound *Source; 
+    
+    int32 SamplesPlayed;
+    bool32 Loop;
+    real32 Volume[2];
+    
+    PlayingSound *Next;
+};
+
+struct SoundMixer 
+{   
+    memory_arena MixerArena;
+
+    PlayingSound *FirstPlayingSound;
+    PlayingSound *FirstFreePlayingSound; // NOTE(Joey): re-use previously de-queued playing sounds memory
+};
+
 
 #endif

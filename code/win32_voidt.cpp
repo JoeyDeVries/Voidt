@@ -286,7 +286,7 @@ internal void Win32InitDSound(HWND window, int32 samplesPerSecond, int32 bufferS
 
             bufferDescription = {};
             bufferDescription.dwSize  = sizeof(bufferDescription);
-            bufferDescription.dwFlags = DSBCAPS_GETCURRENTPOSITION2;
+            bufferDescription.dwFlags = DSBCAPS_GETCURRENTPOSITION2|DSBCAPS_GLOBALFOCUS;
             bufferDescription.dwBufferBytes = bufferSize;
             bufferDescription.lpwfxFormat = &waveFormat;
             
@@ -979,7 +979,7 @@ int CALLBACK WinMain(
             soundOutput.bytesPerSample      = sizeof(int16) * 2;
             soundOutput.secondaryBufferSize = soundOutput.samplesPerSecond * soundOutput.bytesPerSample;
             // soundOutput.latencySampleCount  = 3 * (soundOutput.samplesPerSecond / gameUpdateHz);
-            soundOutput.SafetyBytes         = (int)(((real32)soundOutput.samplesPerSecond*(real32)soundOutput.bytesPerSample / gameUpdateHz) / 3.0f);
+            soundOutput.SafetyBytes         = (int)(((real32)soundOutput.samplesPerSecond*(real32)soundOutput.bytesPerSample / gameUpdateHz) / 2.0f);
 
             Win32InitDSound(Window, soundOutput.samplesPerSecond, soundOutput.secondaryBufferSize); 
             Win32ClearBuffer(&soundOutput);

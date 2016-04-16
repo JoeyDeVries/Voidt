@@ -54,7 +54,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         gameState->Player = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/player.bmp");
         gameState->Enemy = LoadTexture(thread, memory->DEBUGPlatformReadEntireFile, "space/enemy.bmp");
         
-        gameState->TestSound = LoadWAV(memory->DEBUGPlatformReadEntireFile, "audio/music.wav");
+        gameState->Music = LoadWAV(memory->DEBUGPlatformReadEntireFile, "audio/music.wav");
+        gameState->Gun = LoadWAV(memory->DEBUGPlatformReadEntireFile, "audio/gun.wav");
+        gameState->Explosion = LoadWAV(memory->DEBUGPlatformReadEntireFile, "audio/explosion.wav");
         
         gameState->tSine = 0.0f;
         
@@ -63,7 +65,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PlatformCompleteAllWork = memory->PlatformCompleteAllWork;
 
         // TODO(Joey): generate procedural world here
-        InitializeArena(&gameState->WorldArena, memory->PermanentStorageSize - sizeof(game_state), (uint8*)memory->PermanentStorage + sizeof(game_state));        
+        InitializeArena(&gameState->WorldArena, Megabytes(32), (uint8*)memory->PermanentStorage + sizeof(game_state));        
+        
+        memory_arena mixerArena = {};
+        InitializeArena(&mixerArena, Megabytes(1), gameState->WorldArena.Base + gameState->WorldArena.Size);
+        gameState->Mixer.MixerArena = mixerArena;
+        
+        PlaySound(&gameState->Mixer, &gameState->Music);
         
         memory->IsInitialized = true;
     }            
@@ -71,7 +79,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     memory_arena transientArena; 
     InitializeArena(&transientArena, memory->TransientStorageSize, (uint8*)memory->TransientStorage);      
   
-    
+  
+    gameState->FireDelay += input->dtPerFrame;    
+    gameState->ExplosionDelay += input->dtPerFrame;    
     //////////////////////////////////////////////////////////
     //       GAME INPUT 
     //////////////////////////////////////////////////////////   
@@ -79,38 +89,40 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {
         game_controller_input *controller = GetController(input, controllerIndex);
         // controlled_player *controlledPlayer = gameState->ControlledPlayers + controllerIndex;
-        if(controllerIndex == 0)
+        // if(controllerIndex == 0)
         {            
-            // controlledPlayer->Acceleration = {};
-            if(controller->IsAnalog)
+            // movement tuning
+            real32 cameraSpeed = 4.0f;
+            if(controller->MoveUp.EndedDown)
             {
-                // analog movement tuning
-                // controlledPlayer->Acceleration = { controller->StickAverageX, controller->StickAverageY };
+                // controlledPlayer->Acceleration.y =  1.0f;
+                gameState->CameraPos.y += cameraSpeed;
             }
-            else
+            if(controller->MoveDown.EndedDown)
             {
-                // digital movement tuning
-                real32 cameraSpeed = 4.0f;
-                if(controller->MoveUp.EndedDown)
-                {
-                    // controlledPlayer->Acceleration.y =  1.0f;
-                    gameState->CameraPos.y += cameraSpeed;
-                }
-                if(controller->MoveDown.EndedDown)
-                {
-                    // controlledPlayer->Acceleration.y = -1.0f;
-                    gameState->CameraPos.y -= cameraSpeed;
-                }
-                if(controller->MoveLeft.EndedDown)
-                {
-                    // controlledPlayer->Acceleration.x = -1.0f;
-                    gameState->CameraPos.x -= cameraSpeed;
-                }
-                if(controller->MoveRight.EndedDown)
-                {
-                    // controlledPlayer->Acceleration.x =  1.0f;
-                    gameState->CameraPos.x += cameraSpeed;
-                }                                
+                // controlledPlayer->Acceleration.y = -1.0f;
+                gameState->CameraPos.y -= cameraSpeed;
+            }
+            if(controller->MoveLeft.EndedDown)
+            {
+                // controlledPlayer->Acceleration.x = -1.0f;
+                gameState->CameraPos.x -= cameraSpeed;
+            }
+            if(controller->MoveRight.EndedDown)
+            {
+                // controlledPlayer->Acceleration.x =  1.0f;
+                gameState->CameraPos.x += cameraSpeed;
+            }
+
+            if(controller->RightShoulder.EndedDown && gameState->FireDelay >= 0.25f)                
+            {
+                PlaySound(&gameState->Mixer, &gameState->Gun);
+                gameState->FireDelay = 0.0f;
+            }
+            if (controller->LeftShoulder.EndedDown && gameState->ExplosionDelay >= 1.0f)
+            {
+                PlaySound(&gameState->Mixer, &gameState->Explosion);
+                gameState->ExplosionDelay = 0.0f;
             }
         }
     }
@@ -185,19 +197,80 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
 {
     game_state *gameState = (game_state*)memory->PermanentStorage;      
     // GameOutputSound(soundBuffer, gameState, 412);
+    
+    TempMemory mixResultMemory = BeginTempMemory(&gameState->Mixer.MixerArena);
+    
+    real32 *realChannel0 = PushArray(&gameState->Mixer.MixerArena, soundBuffer->SampleCount, real32);
+    real32 *realChannel1 = PushArray(&gameState->Mixer.MixerArena, soundBuffer->SampleCount, real32);    
+    for(int32 sampleIndex = 0; sampleIndex < soundBuffer->SampleCount; ++sampleIndex)
+    {
+        realChannel0[sampleIndex] = 0.0f;
+        realChannel1[sampleIndex] = 0.0f;
+    }
+    
+    for(PlayingSound **playingSoundPtr = &gameState->Mixer.FirstPlayingSound;
+        *playingSoundPtr;
+        )
+    {
+        PlayingSound *playingSound = *playingSoundPtr;
+        bool32 soundFinished = false;
+        
+        Sound* sound = playingSound->Source;
+        if(sound)
+        {
+            real32 volume0 = playingSound->Volume[0];
+            real32 volume1 = playingSound->Volume[1];
+            real32 *channel0 = realChannel0;
+            real32 *channel1 = realChannel1;
+            
+            Assert(playingSound->SamplesPlayed >= 0);
+                        
+            int32 samplesRemainingInSound = sound->SampleCount - playingSound->SamplesPlayed;
+            int32 nrSamplesToMix = soundBuffer->SampleCount;
+            if(!playingSound->Loop && samplesRemainingInSound < nrSamplesToMix)
+                nrSamplesToMix = samplesRemainingInSound;
+            
+            for(int32 sampleIndex = playingSound->SamplesPlayed; 
+                sampleIndex < (playingSound->SamplesPlayed + nrSamplesToMix); 
+                ++sampleIndex)
+            {        
+                real32 sampleValue = sound->Samples[0][sampleIndex % sound->SampleCount];
+                *channel0++ += volume0*sampleValue;
+                *channel1++ += volume1*sampleValue;
+            }
+            
+            playingSound->SamplesPlayed = playingSound->SamplesPlayed + nrSamplesToMix;
+            if(playingSound->Loop)
+                playingSound->SamplesPlayed = playingSound->SamplesPlayed % sound->SampleCount;
+            
+            soundFinished = !playingSound->Loop && (uint32)playingSound->SamplesPlayed == sound->SampleCount;       
+        }
+        else
+        {
+            // NOTE(Joey): Load sound here? or when retrieving from Asset manager; I'd say load sound when
+            // not available in asset manager, much better path to take
+        }
+        
+        if(soundFinished)
+        {
+            *playingSoundPtr = playingSound->Next;
+            playingSound->Next = gameState->Mixer.FirstFreePlayingSound;
+            gameState->Mixer.FirstFreePlayingSound = playingSound;
+        }
+        else
+        {
+            playingSoundPtr = &playingSound->Next;
+        }
+    }
       
+    real32 *source0 = realChannel0;
+    real32 *source1 = realChannel1;
     int16 *sampleOut = soundBuffer->Samples;
     for(int sampleIndex = 0; sampleIndex < soundBuffer->SampleCount; ++sampleIndex)
-    {        
-        int16 sample = 0;
-        if(gameState->TestSound.SampleCount > 0)
-        {
-            uint32 soundSampleIndex = (gameState->SoundSampleIndex + sampleIndex) % gameState->TestSound.SampleCount;
-            sample = gameState->TestSound.Samples[0][soundSampleIndex];
-        }
-      
-        *sampleOut++ = sample;
-        *sampleOut++ = sample;
+    {               
+        *sampleOut++ = (int16)(realChannel0[sampleIndex] + 0.5f);
+        *sampleOut++ = (int16)(realChannel1[sampleIndex] + 0.5f);
     }        
-    gameState->SoundSampleIndex += soundBuffer->SampleCount;
+    
+    EndTempMemory(mixResultMemory);
 }
