@@ -157,7 +157,7 @@ internal Texture CreateEmptyTexture(memory_arena *arena,
     texture.Height = height;
     
     texture.Pitch = width * sizeof(uint32); // NOTE(Joey): 1 pixel is uint32
-    texture.Texels = (uint32*)PushSize_(arena, height*texture.Pitch);
+    texture.Texels = (uint32*)PushSize_(arena, height*texture.Pitch, 16);
     
     // NOTE(Joey): zero all texels
     ZeroSize(texture.Texels, height*texture.Pitch);

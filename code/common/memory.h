@@ -27,6 +27,7 @@ inline void InitializeArena(memory_arena *arena, memory_index size, void *base)
     arena->Size = size;
     arena->Base = (uint8*)base;
     arena->Used = 0;
+    arena->TempCount = 0;
 }
 
 #define PushStruct(arena, type, ...) (type*)PushSize_(arena, sizeof(type), ## __VA_ARGS__)
@@ -52,7 +53,7 @@ inline void ZeroSize(void *ptr, memory_index size)
 {
     // TODO(Joey): check for performance
     uint8 *byte = (uint8*)ptr;
-    while(size--)
+    for(memory_index i = 0; i < size; ++i)
     {
         *byte++ = 0;
     }
