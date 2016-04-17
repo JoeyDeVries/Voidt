@@ -30,8 +30,10 @@ struct PlayingSound
     
     int32 SamplesPlayed;
     bool32 Loop;
-    real32 Volume[2];
-    
+    real32 CurrentVolume[2];
+    real32 TargetVolume[2];
+    real32 dVolume[2];
+        
     PlayingSound *Next;
 };
 

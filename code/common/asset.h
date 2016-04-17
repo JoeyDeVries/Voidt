@@ -34,6 +34,7 @@ struct GameAssets
 {
     memory_arena *Arena;
     
+    // TODO(Joey): transform static list to hash table (more efficient|flexible scheme)
     LoadedTexture Textures[MAX_ASSETS];
     LoadedSound   Sounds[MAX_ASSETS];   
         

@@ -35,7 +35,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         memory_arena mixerArena = {};
         InitializeArena(&mixerArena, Megabytes(1), gameState->WorldArena.Base + gameState->WorldArena.Size);
-        gameState->Mixer.MixerArena = mixerArena;              
+        gameState->Mixer.MixerArena = mixerArena;               
         
         gameState->IsInitialized = true;
     }            
@@ -65,7 +65,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PreFetchSound(&transientState->Assets, "audio/gun.wav");
         PreFetchSound(&transientState->Assets, "audio/explosion.wav");               
         
-        PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.75f);        
+        PlayingSound *sound = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f);   
+        SetVolume(sound, 0.75f, 0.75f, 7.5f);
          
         transientState->IsInitialized = true;
     }
@@ -197,7 +198,7 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
     real32 *realChannel0 = PushArray(&gameState->Mixer.MixerArena, soundBuffer->SampleCount, real32);
     real32 *realChannel1 = PushArray(&gameState->Mixer.MixerArena, soundBuffer->SampleCount, real32);    
 
-    MixSounds(&gameState->Mixer, realChannel0, realChannel1, soundBuffer->SampleCount);
+    MixSounds(&gameState->Mixer, soundBuffer->SamplesPerSecond, realChannel0, realChannel1, soundBuffer->SampleCount);
     
     real32 *source0 = realChannel0;
     real32 *source1 = realChannel1;
