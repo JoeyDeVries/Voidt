@@ -28,11 +28,12 @@ struct PlayingSound
     // I don't want to chase too much pointers.
     Sound *Source; 
     
-    int32 SamplesPlayed;
-    bool32 Loop;
-    real32 CurrentVolume[2];
-    real32 TargetVolume[2];
-    real32 dVolume[2];
+    r32 SamplesPlayed;
+    b32 Loop;
+    r32 CurrentVolume[2];
+    r32 TargetVolume[2];
+    r32 dVolume[2];
+    r32 Pitch;
         
     PlayingSound *Next;
 };

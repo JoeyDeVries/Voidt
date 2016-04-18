@@ -16,6 +16,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {   
     // NOTE(Joey): temp. debug output hook; replace with elegant platform debug output tooling.
     GlobalPlatformWriteDebugOutput = memory->PlatformWriteDebugOutput;
+    // function pointers for threaded work queue
+    PlatformAddWorkEntry    = memory->PlatformAddWorkEntry;
+    PlatformCompleteAllWork = memory->PlatformCompleteAllWork;
 
     // Assert((&input->Controllers[0].Back - &input->Controllers[0].Buttons[0]) == ArrayCount(input->Controllers[0].Buttons) - 1); // check if button array matches union struct members
     Assert(sizeof(game_state) <= memory->PermanentStorageSize);      
@@ -25,17 +28,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // required to persist throughout the game's life cycle
     game_state *gameState = (game_state*)memory->PermanentStorage;    
     if(!gameState->IsInitialized)
-    {                            
-        // set function pointers for Voidt module
-        PlatformAddWorkEntry    = memory->PlatformAddWorkEntry;
-        PlatformCompleteAllWork = memory->PlatformCompleteAllWork;
-
+    {                                    
         // TODO(Joey): generate procedural world here
         InitializeArena(&gameState->WorldArena, Megabytes(32), (uint8*)memory->PermanentStorage + sizeof(game_state));        
         
         memory_arena mixerArena = {};
         InitializeArena(&mixerArena, Megabytes(1), gameState->WorldArena.Base + gameState->WorldArena.Size);
-        gameState->Mixer.MixerArena = mixerArena;               
+        gameState->Mixer.MixerArena = mixerArena;        
+
+        GlobalRandom = Seed(1337);
         
         gameState->IsInitialized = true;
     }            
@@ -65,12 +66,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PreFetchSound(&transientState->Assets, "audio/gun.wav");
         PreFetchSound(&transientState->Assets, "audio/explosion.wav");               
         
-        PlayingSound *sound = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f);   
-        SetVolume(sound, 0.75f, 0.75f, 7.5f);
+        gameState->Music = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f, 1.0f, true);   
+        SetVolume(gameState->Music, 0.75f, 0.75f, 2.5f);
+        // SetVolume(sound, 0.75f, 0.75f, 7.5f);
          
         transientState->IsInitialized = true;
     }
-  
+      
     gameState->FireDelay += input->dtPerFrame;    
     gameState->ExplosionDelay += input->dtPerFrame;    
     //////////////////////////////////////////////////////////
@@ -107,12 +109,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
             if(controller->RightShoulder.EndedDown && gameState->FireDelay >= 0.2f)                
             {
-                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/gun.wav"), 0.55f);
+                real32 pitch = 1.0f;
+                uint32 choice = RandomChoice(&GlobalRandom, 4);
+                if(choice == 0) pitch = 1.15f;
+                if(choice == 1) pitch = 1.25f;
+                if(choice == 2) pitch = 0.85f;
+                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/gun.wav"), 0.55f, pitch);
                 gameState->FireDelay = 0.0f;
             }
             if (controller->LeftShoulder.EndedDown && gameState->ExplosionDelay >= 1.0f)
             {
-                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/explosion.wav"), 0.55f);
+                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/explosion.wav"), 0.55f, 0.8f);
                 gameState->ExplosionDelay = 0.0f;
             }
         }

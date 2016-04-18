@@ -126,8 +126,6 @@ internal Sound* GetSound(GameAssets *assets, char *name, bool forceLoad = false)
     }
     
     // NOTE(Joey): if texture wasn't found, set up background worker to load texture
-    // TODO(Joey): do this with background tasks (set up memory specific per task and
-    // let task properly increment table).
     if(!sound)
     {              
         if(forceLoad)

@@ -10,6 +10,7 @@
 ** option) any later version.
 *******************************************************************/
 
+global_variable random_series GlobalRandom;
 
 inline random_series Seed(uint32 value)
 {

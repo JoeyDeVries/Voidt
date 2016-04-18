@@ -1044,6 +1044,8 @@ int CALLBACK WinMain(
                     FILETIME newDLLWriteTime = Win32GetLastWriteTime(sourceGameCodeDLLFullPath);
                     if(CompareFileTime(&game.DLLLastWriteTime, &newDLLWriteTime) != 0)
                     {
+                        Win32CompleteAllWork(&queueHighPriority);
+                        Win32CompleteAllWork(&queueLowPriority);
                         Win32UnloadGameCode(&game);
                         game = Win32LoadGameCode(sourceGameCodeDLLFullPath, tempGameCodeDLLFullPath, lockGameCodeDLLFullPath);
                     }

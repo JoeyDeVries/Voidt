@@ -62,6 +62,7 @@ struct game_state
     
     // audio/sound
     SoundMixer Mixer;
+    PlayingSound *Music;
    
     // debug
     real32 FireDelay;
