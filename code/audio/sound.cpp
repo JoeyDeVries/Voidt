@@ -43,6 +43,7 @@ internal PlayingSound* PlaySound(SoundMixer *mixer, Sound *sound, real32 volume 
 internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realChannel0, __m128 *realChannel1, int32 sampleCount)
 {
     i32 sampleCount4 = sampleCount / 4;
+    i32 sampleCount8 = sampleCount / 8;
     
     // simd globals
     __m128 zero = _mm_set1_ps(0.0f);

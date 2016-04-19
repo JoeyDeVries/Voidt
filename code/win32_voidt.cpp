@@ -1234,7 +1234,8 @@ int CALLBACK WinMain(
                         // let game write to audio buffer
                         game_sound_output_buffer soundBuffer = {};
                         soundBuffer.SamplesPerSecond = soundOutput.samplesPerSecond;
-                        soundBuffer.SampleCount = bytesToWrite / soundOutput.bytesPerSample;
+                        soundBuffer.SampleCount = Align8(bytesToWrite / soundOutput.bytesPerSample);
+                        bytesToWrite = soundBuffer.SampleCount*soundOutput.bytesPerSample;
                         soundBuffer.Samples = samples;
                         game.GetSoundSamples(&thread, &gameMemory, &soundBuffer);
                         

@@ -12,6 +12,7 @@
 
 #include <string.h>
 
+// TODO(Joey): write custom string compare function (remove dependency on c-standard library: string.h)
 inline bool32 StringCompare(char *a, char *b)
 {
     return strcmp(a, b) == 0;
