@@ -87,7 +87,7 @@ internal Texture* GetTexture(GameAssets *assets, char *name, bool forceLoad = fa
     
             Texture texturez = LoadTexture(assets->DEBUGPlatformReadEntireFile, name);
             assets->Textures[assets->LoadedTextureCount].Asset = texturez;
-            assets->Textures[assets->LoadedTextureCount].Name = name;
+            assets->Textures[assets->LoadedTextureCount].Name = PushString(assets->Arena, name);
             texture = &assets->Textures[assets->LoadedTextureCount].Asset;
             _InterlockedIncrement((volatile long*)&assets->LoadedTextureCount);
         }
@@ -95,7 +95,7 @@ internal Texture* GetTexture(GameAssets *assets, char *name, bool forceLoad = fa
         {
             LoadAssetData *data = PushStruct(assets->Arena, LoadAssetData);
             data->Assets = assets;
-            data->FileName = name;
+            data->FileName = PushString(assets->Arena, name);
             
             // TODO(Joey): make sure to de-allocate memory once task is done (see task_with_memory)
             PlatformAddWorkEntry(assets->WorkQueue, DoBackgroundTextureLoadWork, data);
@@ -132,7 +132,7 @@ internal Sound* GetSound(GameAssets *assets, char *name, bool forceLoad = false)
         {   // load right now, don't wait for background thread
             Sound soundz = LoadWAV(assets->DEBUGPlatformReadEntireFile, name);
             assets->Sounds[assets->LoadedSoundCount].Asset = soundz;
-            assets->Sounds[assets->LoadedSoundCount].Name = name;
+            assets->Sounds[assets->LoadedSoundCount].Name = PushString(assets->Arena, name);
             // TODO(Joey): make PushString and store const char* memory in arena (as memory addresses
             // of the strings get invalidated while hot-loading DLL.            
             sound = &assets->Sounds[assets->LoadedSoundCount].Asset;
@@ -142,7 +142,7 @@ internal Sound* GetSound(GameAssets *assets, char *name, bool forceLoad = false)
         {
             LoadAssetData *data = PushStruct(assets->Arena, LoadAssetData);
             data->Assets = assets;
-            data->FileName = name;
+            data->FileName = PushString(assets->Arena, name);
             
             PlatformAddWorkEntry(assets->WorkQueue, DoBackgroundSoundLoadWork, data);      
         }

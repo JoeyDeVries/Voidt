@@ -59,6 +59,18 @@ inline void ZeroSize(void *ptr, memory_index size)
     }
 }
 
+inline char* PushString(memory_arena *arena, char *string)
+{    
+    u32 size = 1; // NOTE(Joey): take 0 byte into account
+    for(char *c = string; *c; ++c, ++size) { }
+    
+    char *mem = (char*)PushSize_(arena, size);
+    for(u32 i = 0; i < size; ++i)
+        mem[i] = string[i];
+    
+    return mem;
+}
+
 
 // temp memory (stack-based allocation)
 struct TempMemory
