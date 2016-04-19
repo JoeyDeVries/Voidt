@@ -985,7 +985,10 @@ int CALLBACK WinMain(
             Win32ClearBuffer(&soundOutput);
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
            
-            int16 *samples = (int16 *)VirtualAlloc(0, soundOutput.secondaryBufferSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+            // NOTE(Joey): allocate memory for samples, add padding bits of 4 samples (SIMD)
+            u32 maxSampleOverrun = 2*4*sizeof(u16);
+            int16 *samples = (int16 *)VirtualAlloc(0, soundOutput.secondaryBufferSize + maxSampleOverrun, 
+                                                   MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
             
             #if INTERNAL
                 LPVOID baseAddress       = (LPVOID)Gigabytes(2048);

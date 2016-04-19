@@ -78,6 +78,11 @@ typedef double r64;
 
 #define ArrayCount(array) (sizeof(array) / sizeof((array)[0]))
 
+#define AlignPow2(Value, Alignment) ((Value) + (Alignment )- 1) & ~((Alignment) - 1)
+#define Align4(Value) AlignPow2((Value), 4)
+#define Align8(Value) AlignPow2((Value), 8)
+#define Align16(Value) AlignPow2((Value), 16)
+
 // ----------------------------------------------------------------------------
 //      PRE-PROCESSOR UTILITY
 // ----------------------------------------------------------------------------

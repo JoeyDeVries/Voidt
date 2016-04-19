@@ -40,15 +40,25 @@ internal PlayingSound* PlaySound(SoundMixer *mixer, Sound *sound, real32 volume 
 }
 
 
-internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, real32 *realChannel0, real32 *realChannel1, int32 sampleCount)
+internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realChannel0, __m128 *realChannel1, int32 sampleCount)
 {
+    i32 sampleCount4 = sampleCount / 4;
+    
+    // simd globals
+    __m128 zero = _mm_set1_ps(0.0f);
+    __m128 minS16 = _mm_set1_ps(32767.0f);
+    __m128 maxS16 = _mm_set1_ps(-32768.0f);
+    
+    // get number of samples per second
     real32 secondsPerSample = 1.0f / (real32)sampleFrequency;
     
     // NOTE(Joey): clean channels with 0.0f before mixing
-    for(int32 sampleIndex = 0; sampleIndex < sampleCount; ++sampleIndex)
+    for(int32 sampleIndex = 0; sampleIndex < sampleCount4; ++sampleIndex)
     {
-        realChannel0[sampleIndex] = 0.0f;
-        realChannel1[sampleIndex] = 0.0f;
+        _mm_store_ps((float*)(realChannel0 + sampleIndex), zero);
+        _mm_store_ps((float*)(realChannel1 + sampleIndex), zero);
+         // = zero;
+        // realChannel1[sampleIndex] = zero;
     }
     
     // NOTE(Joey): loop over all playing sounds and mix into both real floating point channels
@@ -66,17 +76,18 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, real32 *realC
             r32 volume1 = playingSound->CurrentVolume[1];
             r32 dVolume0 = secondsPerSample*playingSound->dVolume[0];
             r32 dVolume1 = secondsPerSample*playingSound->dVolume[1];
-            r32 *channel0 = realChannel0;
-            r32 *channel1 = realChannel1;            
+            r32 *channel0 = (real32*)realChannel0;
+            r32 *channel1 = (real32*)realChannel1;            
             r32 dSample = playingSound->Pitch;
             
             Assert(playingSound->SamplesPlayed >= 0);
                         
             // NOTE(Joey): determine the maximum number of samples to mix this frame
             i32 nrSamplesToMix = sampleCount;
-            i32 test0 = RoundReal32ToInt32(playingSound->SamplesPlayed);
-            i32 test = (sound->SampleCount - test0);
-            r32 realSamplesRemainingInSound = (r32)test / dSample;
+            // NOTE(Joey): deltaSampleRates can get negative (likely due to floating point precision)
+            // this is accounted for in loop condition.
+            i32 deltaSampleRates = (sound->SampleCount - RoundReal32ToInt32(playingSound->SamplesPlayed));
+            r32 realSamplesRemainingInSound = (r32)deltaSampleRates / dSample;
             i32 samplesRemainingInSound = RoundReal32ToInt32(realSamplesRemainingInSound);
             if(!playingSound->Loop && samplesRemainingInSound <= (i32)nrSamplesToMix)
                 nrSamplesToMix = samplesRemainingInSound;

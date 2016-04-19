@@ -133,6 +133,8 @@ internal Sound* GetSound(GameAssets *assets, char *name, bool forceLoad = false)
             Sound soundz = LoadWAV(assets->DEBUGPlatformReadEntireFile, name);
             assets->Sounds[assets->LoadedSoundCount].Asset = soundz;
             assets->Sounds[assets->LoadedSoundCount].Name = name;
+            // TODO(Joey): make PushString and store const char* memory in arena (as memory addresses
+            // of the strings get invalidated while hot-loading DLL.            
             sound = &assets->Sounds[assets->LoadedSoundCount].Asset;
             _InterlockedIncrement((volatile long*)&assets->LoadedSoundCount);
         }

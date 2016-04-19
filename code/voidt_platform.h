@@ -57,6 +57,7 @@ struct game_sound_output_buffer
 {
     int SamplesPerSecond;
     int SampleCount;
+    // NOTE(Joey): samples must be padded to be a multiple of 4
     int16 *Samples;
 };
 

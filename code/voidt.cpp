@@ -67,7 +67,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PreFetchSound(&transientState->Assets, "audio/explosion.wav");               
         
         gameState->Music = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f, 1.0f, true);   
-        SetVolume(gameState->Music, 0.75f, 0.75f, 2.5f);
+        SetVolume(gameState->Music, 1.0f, 1.0f, 2.5f);
         // SetVolume(sound, 0.75f, 0.75f, 7.5f);
          
         transientState->IsInitialized = true;
@@ -114,12 +114,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 if(choice == 0) pitch = 1.15f;
                 if(choice == 1) pitch = 1.25f;
                 if(choice == 2) pitch = 0.85f;
-                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/gun.wav"), 0.55f, pitch);
+                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/gun.wav"), 1.0f, pitch);
                 gameState->FireDelay = 0.0f;
             }
             if (controller->LeftShoulder.EndedDown && gameState->ExplosionDelay >= 1.0f)
             {
-                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/explosion.wav"), 0.55f, 0.8f);
+                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/explosion.wav"), 1.0f, 0.8f);
                 gameState->ExplosionDelay = 0.0f;
             }
         }
@@ -202,18 +202,36 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
     
     TempMemory mixResultMemory = BeginTempMemory(&gameState->Mixer.MixerArena);
     
-    real32 *realChannel0 = PushArray(&gameState->Mixer.MixerArena, soundBuffer->SampleCount, real32);
-    real32 *realChannel1 = PushArray(&gameState->Mixer.MixerArena, soundBuffer->SampleCount, real32);    
-
+    u32 sampleCount = Align4(soundBuffer->SampleCount);
+    u32 sampleCount4 = sampleCount / 4;
+    __m128 *realChannel0 = PushArray(&gameState->Mixer.MixerArena, sampleCount, __m128, 16);
+    __m128 *realChannel1 = PushArray(&gameState->Mixer.MixerArena, sampleCount, __m128, 16);    
+    
+    
     MixSounds(&gameState->Mixer, soundBuffer->SamplesPerSecond, realChannel0, realChannel1, soundBuffer->SampleCount);
     
-    real32 *source0 = realChannel0;
-    real32 *source1 = realChannel1;
-    int16 *sampleOut = soundBuffer->Samples;
-    for(int sampleIndex = 0; sampleIndex < soundBuffer->SampleCount; ++sampleIndex)
+    
+    __m128 *source0 = realChannel0;
+    __m128 *source1 = realChannel1;
+    __m128i *sampleOut = (__m128i*)soundBuffer->Samples;
+    for(u32 sampleIndex = 0; sampleIndex < sampleCount4; ++sampleIndex)
     {               
-        *sampleOut++ = (int16)(realChannel0[sampleIndex] + 0.5f);
-        *sampleOut++ = (int16)(realChannel1[sampleIndex] + 0.5f);
+        __m128 s0 = _mm_load_ps((float*)source0++);
+        __m128 s1 = _mm_load_ps((float*)source1++);
+
+        // NOTE(Joey): round floats to 32 bit integers
+        __m128i l = _mm_cvtps_epi32(s0);
+        __m128i r = _mm_cvtps_epi32(s1);
+        // NOTE(Joey): converts both low and high 64 bit to interleaved format:
+        // l0r0l1r1 and l2r2l3r3
+        __m128i lr0 = _mm_unpacklo_epi32(l, r);
+        __m128i lr1 = _mm_unpackhi_epi32(l, r);
+        // NOTE(Joey): pack both hi-low interleaved data together as 16 bits (also clamps to 16 bit range)
+        __m128i samples = _mm_packs_epi32(lr0, lr1);
+
+        *sampleOut++ = samples;
+        // *sampleOut++ = (int16)(source0[sampleIndex] + 0.5f);
+        // *sampleOut++ = (int16)(source1[sampleIndex] + 0.5f);
     }        
     
     EndTempMemory(mixResultMemory);
