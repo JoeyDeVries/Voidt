@@ -35,6 +35,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         memory_arena mixerArena = {};
         InitializeArena(&mixerArena, Megabytes(1), gameState->WorldArena.Base + gameState->WorldArena.Size);
         gameState->Mixer.MixerArena = mixerArena;        
+        InitSoundMixer(&gameState->Mixer);
 
         GlobalRandom = Seed(1337);
         
@@ -66,7 +67,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PreFetchSound(&transientState->Assets, "audio/gun.wav");
         PreFetchSound(&transientState->Assets, "audio/explosion.wav");               
         
-        gameState->Music = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f, 1.0f, true);   
+        gameState->Music = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f, 1.5f, true);   
         SetVolume(gameState->Music, 1.0f, 1.0f, 2.5f);
         // SetVolume(sound, 0.75f, 0.75f, 7.5f);
          

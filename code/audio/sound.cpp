@@ -10,35 +10,10 @@
 ** option) any later version.
 *******************************************************************/
 
-internal PlayingSound* PlaySound(SoundMixer *mixer, Sound *sound, real32 volume = 1.0f, real32 pitch = 1.0f, bool32 loop = false)
+internal void InitSoundMixer(SoundMixer *mixer)
 {
-    // NOTE(Joey): get new|free PlayingSound at top of linked list
-    PlayingSound *playingSound = 0;
-    if(mixer->FirstFreePlayingSound)
-    {
-        playingSound = mixer->FirstFreePlayingSound;
-        mixer->FirstFreePlayingSound = playingSound->Next;
-        playingSound->Next = 0;
-    }
-    else
-    {
-        playingSound = PushStruct(&mixer->MixerArena, PlayingSound);        
-    }
-    playingSound->Next = mixer->FirstPlayingSound;
-    mixer->FirstPlayingSound = playingSound;
-    
-    // NOTE(Joey): initialize playing sound
-    playingSound->Source = sound; 
-    playingSound->SamplesPlayed = 0;
-    playingSound->Loop = loop;
-    playingSound->CurrentVolume[0] = playingSound->TargetVolume[0] = volume;
-    playingSound->CurrentVolume[1] = playingSound->TargetVolume[1] = volume;      
-    playingSound->dVolume[0] = playingSound->dVolume[1] = 0.0f;    
-    playingSound->Pitch = pitch;
-    
-    return playingSound;
+    mixer->MasterVolume = 1.0f;
 }
-
 
 internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realChannel0, __m128 *realChannel1, int32 sampleCount)
 {
@@ -72,14 +47,24 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
         
         Sound* sound = playingSound->Source;
         if(sound)
-        {
+        {            
             r32 volume0 = playingSound->CurrentVolume[0];
             r32 volume1 = playingSound->CurrentVolume[1];
             r32 dVolume0 = secondsPerSample*playingSound->dVolume[0];
             r32 dVolume1 = secondsPerSample*playingSound->dVolume[1];
-            r32 *channel0 = (real32*)realChannel0;
-            r32 *channel1 = (real32*)realChannel1;            
             r32 dSample = playingSound->Pitch;
+            
+            __m128 *channel0 = realChannel0;
+            __m128 *channel1 = realChannel1;            
+            __m128 masterVolume4 = _mm_set1_ps(mixer->MasterVolume);
+            __m128 volume4_0 = _mm_set_ps(volume0 + 0.0f*dVolume0,
+                                          volume0 + 1.0f*dVolume0,
+                                          volume0 + 2.0f*dVolume0,
+                                          volume0 + 3.0f*dVolume0);
+            __m128 volume4_1 = _mm_set_ps(volume1 + 0.0f*dVolume1,
+                                          volume1 + 1.0f*dVolume1,
+                                          volume1 + 2.0f*dVolume1,
+                                          volume1 + 3.0f*dVolume1);
             
             Assert(playingSound->SamplesPlayed >= 0);
                         
@@ -120,21 +105,52 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
             }
             
             r32 samplePosition = playingSound->SamplesPlayed;
-            for(i32 i = 0; i < nrSamplesToMix; ++i)
-            {                        
-                u32 sampleIndex = FloorReal32ToInt32(samplePosition);
-                r32 frac = samplePosition - (r32)sampleIndex;
+            for(i32 i = 0; i < nrSamplesToMix; i += 8)
+            {                   
+
+#if 0 // linear filtering        
+                real32 offsetSamplePosition = samplePosition + (r32)sampleOffset*dSample;
+                u32 sampleIndex = FloorReal32ToInt32(offsetSamplePosition);
+                r32 frac = offsetSamplePosition - (r32)sampleIndex;                    
+                
                 r32 sample0 = (r32)sound->Samples[0][sampleIndex % sound->SampleCount];
                 r32 sample1 = (r32)sound->Samples[0][sampleIndex + 1 % sound->SampleCount];
                 r32 sampleValue = Lerp(sample0, sample1, frac);
+#else // nearest-neighbor filtering
+                __m128 sampleValue0 = _mm_setr_ps(sound->Samples[0][RoundReal32ToInt32(samplePosition + 0.0f*dSample)],
+                                                  sound->Samples[0][RoundReal32ToInt32(samplePosition + 1.0f*dSample)],
+                                                  sound->Samples[0][RoundReal32ToInt32(samplePosition + 2.0f*dSample)],
+                                                  sound->Samples[0][RoundReal32ToInt32(samplePosition + 3.0f*dSample)]);
+                __m128 sampleValue1 = _mm_setr_ps(sound->Samples[0][RoundReal32ToInt32(samplePosition + 4.0f*dSample)],
+                                                  sound->Samples[0][RoundReal32ToInt32(samplePosition + 5.0f*dSample)],
+                                                  sound->Samples[0][RoundReal32ToInt32(samplePosition + 6.0f*dSample)],
+                                                  sound->Samples[0][RoundReal32ToInt32(samplePosition + 7.0f*dSample)]);
+#endif 
                 
-                *channel0++ += volume0*sampleValue;
-                *channel1++ += volume1*sampleValue;
+                // NOTE(Joey): write to 8 floats, and thus twice subsequent m128s 
+                // from the output channel; load both per channel.
+                __m128 d0_0 = _mm_load_ps((float*)&channel0[0]);
+                __m128 d0_1 = _mm_load_ps((float*)&channel0[1]); 
+                __m128 d1_0 = _mm_load_ps((float*)&channel1[0]); 
+                __m128 d1_1 = _mm_load_ps((float*)&channel1[1]); 
                 
-                volume0 += dVolume0;
-                volume1 += dVolume1;
+                d0_0 = _mm_add_ps(d0_0, _mm_mul_ps(_mm_mul_ps(masterVolume4, volume4_0), sampleValue0));
+                d0_1 = _mm_add_ps(d0_0, _mm_mul_ps(_mm_mul_ps(masterVolume4, volume4_0), sampleValue1));
+                d1_0 = _mm_add_ps(d0_0, _mm_mul_ps(_mm_mul_ps(masterVolume4, volume4_1), sampleValue0));
+                d1_1 = _mm_add_ps(d0_0, _mm_mul_ps(_mm_mul_ps(masterVolume4, volume4_1), sampleValue1));
+                                
+                _mm_store_ps((float*)&channel0[0], d0_0);
+                _mm_store_ps((float*)&channel0[1], d0_1);
+                _mm_store_ps((float*)&channel1[0], d1_0);
+                _mm_store_ps((float*)&channel1[1], d1_1);
                 
-                samplePosition += dSample;
+                channel0 += 2;
+                channel1 += 2;
+              
+                volume0 += 8.0f*dVolume0;
+                volume1 += 8.0f*dVolume1;
+                
+                samplePosition += 8.0f*dSample;
             }
             
             playingSound->SamplesPlayed = samplePosition;
@@ -152,11 +168,11 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
             }
             
             // if loop, re-position SamplesPlayed to start of sound sample0
-            if(playingSound->Loop && playingSound->SamplesPlayed > (r32)sound->SampleCount)
+            if(playingSound->Loop && playingSound->SamplesPlayed >= (r32)sound->SampleCount)
                playingSound->SamplesPlayed = playingSound->SamplesPlayed - (r32)sound->SampleCount;
           
             
-            soundFinished = !playingSound->Loop && (uint32)playingSound->SamplesPlayed == sound->SampleCount; 
+            soundFinished = !playingSound->Loop && (uint32)playingSound->SamplesPlayed >= sound->SampleCount; 
             if(soundFinished)
                 volume0 = 0.0f;
         }
@@ -178,6 +194,37 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
         }
     }
 }
+
+internal PlayingSound* PlaySound(SoundMixer *mixer, Sound *sound, real32 volume = 1.0f, real32 pitch = 1.0f, bool32 loop = false)
+{
+    // NOTE(Joey): get new|free PlayingSound at top of linked list
+    PlayingSound *playingSound = 0;
+    if(mixer->FirstFreePlayingSound)
+    {
+        playingSound = mixer->FirstFreePlayingSound;
+        mixer->FirstFreePlayingSound = playingSound->Next;
+        playingSound->Next = 0;
+    }
+    else
+    {
+        playingSound = PushStruct(&mixer->MixerArena, PlayingSound);        
+    }
+    playingSound->Next = mixer->FirstPlayingSound;
+    mixer->FirstPlayingSound = playingSound;
+    
+    // NOTE(Joey): initialize playing sound
+    playingSound->Source = sound; 
+    playingSound->SamplesPlayed = 0;
+    playingSound->Loop = loop;
+    playingSound->CurrentVolume[0] = playingSound->TargetVolume[0] = volume;
+    playingSound->CurrentVolume[1] = playingSound->TargetVolume[1] = volume;      
+    playingSound->dVolume[0] = playingSound->dVolume[1] = 0.0f;    
+    playingSound->Pitch = pitch;
+    
+    return playingSound;
+}
+
+
 
 void SetVolume(PlayingSound *sound, real32 volume0, real32 volume1, real32 fadeDuration = 0.0f)
 {

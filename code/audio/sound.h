@@ -41,6 +41,8 @@ struct PlayingSound
 struct SoundMixer 
 {   
     memory_arena MixerArena;
+    
+    r32 MasterVolume;
 
     PlayingSound *FirstPlayingSound;
     PlayingSound *FirstFreePlayingSound; // NOTE(Joey): re-use previously de-queued playing sounds memory    
