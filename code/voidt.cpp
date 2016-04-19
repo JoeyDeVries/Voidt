@@ -204,9 +204,8 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
     TempMemory mixResultMemory = BeginTempMemory(&gameState->Mixer.MixerArena);
     
     // NOTE(Joey): mix in 8-packed 16 bit samples at a time in 128 bit SIMD registers
-    Assert((soundBuffer->SampleCount & 7) == 0);
+    Assert((soundBuffer->SampleCount & 3) == 0);
     u32 sampleCount4 = soundBuffer->SampleCount / 4;
-    u32 sampleCount8 = soundBuffer->SampleCount / 8;
     __m128 *realChannel0 = PushArray(&gameState->Mixer.MixerArena, sampleCount4, __m128, 16);
     __m128 *realChannel1 = PushArray(&gameState->Mixer.MixerArena, sampleCount4, __m128, 16);    
     
