@@ -22,11 +22,9 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
     // simd globals
     __m128 zero = _mm_set1_ps(0.0f);
     __m128 one  = _mm_set1_ps(1.0f);
-    __m128 minS16 = _mm_set1_ps(32767.0f);
-    __m128 maxS16 = _mm_set1_ps(-32768.0f);
-    
+
     // get number of samples per second
-    real32 secondsPerSample = 1.0f / (real32)sampleFrequency;
+    r32 secondsPerSample = 1.0f / (r32)sampleFrequency;
     
     // NOTE(Joey): clean channels with 0.0f before mixing
     for(int32 sampleIndex = 0; sampleIndex < sampleCount4; ++sampleIndex)
@@ -46,6 +44,8 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
         Sound* sound = playingSound->Source;
         if(sound)
         {            
+            r32 volume0 = playingSound->CurrentVolume[0];
+            r32 volume1 = playingSound->CurrentVolume[1];
             r32 dVolume0 = secondsPerSample*playingSound->dVolume[0];
             r32 dVolume1 = secondsPerSample*playingSound->dVolume[1];
             r32 dSample = playingSound->Pitch;
@@ -53,16 +53,16 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
             __m128 *channel0 = realChannel0;
             __m128 *channel1 = realChannel1;            
             __m128 masterVolume4 = _mm_set1_ps(mixer->MasterVolume);
-            __m128 volume4_0 = _mm_set1_ps(playingSound->CurrentVolume[0]);
-            __m128 volume4_1 = _mm_set1_ps(playingSound->CurrentVolume[1]);
-            __m128 dVolume4_0 = _mm_set_ps(0.0f*dVolume0,
-                                           1.0f*dVolume0,
-                                           2.0f*dVolume0,
-                                           3.0f*dVolume0);
-            __m128 dVolume4_1 = _mm_set_ps(0.0f*dVolume1,
-                                           1.0f*dVolume1,
-                                           2.0f*dVolume1,
-                                           3.0f*dVolume1);
+            __m128 volume4_0 = _mm_setr_ps(volume0 + 0.0f*dVolume0,
+                                           volume0 + 1.0f*dVolume0,
+                                           volume0 + 2.0f*dVolume0,
+                                           volume0 + 3.0f*dVolume0);
+            __m128 volume4_1 = _mm_setr_ps(volume1 + 0.0f*dVolume1,
+                                           volume1 + 1.0f*dVolume1,
+                                           volume1 + 2.0f*dVolume1,
+                                           volume1 + 3.0f*dVolume1);
+            __m128 dVolume4_0 = _mm_set1_ps(4.0f*dVolume0);
+            __m128 dVolume4_1 = _mm_set1_ps(4.0f*dVolume1);
             
             Assert(playingSound->SamplesPlayed >= 0);
                         
@@ -71,20 +71,26 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
             // NOTE(Joey): deltaSampleRates can get negative (likely due to floating point precision)
             // this is accounted for in loop condition.
             i32 deltaSampleRates = (sound->SampleCount - RoundReal32ToInt32(playingSound->SamplesPlayed));
-            r32 realSamplesRemainingInSound = (r32)deltaSampleRates / dSample;
+            r32 realSamplesRemainingInSound = (r32)deltaSampleRates / (1.0f*dSample);
             i32 samplesRemainingInSound = RoundReal32ToInt32(realSamplesRemainingInSound);
             if(!playingSound->Loop && samplesRemainingInSound <= (i32)nrSamplesToMix)
+            {
                 nrSamplesToMix = samplesRemainingInSound;
+            }
+            
             
             
             // NOTE(Joey): determine if we need to break out of the loop early due to volume
             // attenuation reaching 0.0f volume per channel.
             bool32 volumeEnded[2] = {};
             // TODO(Joey): make logic independent of nummer of channels
+            // NOTE(Joey): could have a bug here where the volumeEnded (should) get triggered
+            // for both volumes at the same time; which due to this logic will only work on one
+            // volume item. I don't think this is a problem, but if so - this is likely it.
             if(dVolume0 != 0.0f)
             {
-                r32 deltaVolume = playingSound->TargetVolume[0] - ((real32*)&volume4_0)[0];
-                i32 volumeSampleCount = (u32)((deltaVolume / dVolume0) + 0.5f);
+                r32 deltaVolume = playingSound->TargetVolume[0] - playingSound->CurrentVolume[0];
+                i32 volumeSampleCount = (i32)((deltaVolume / (1.0f*dVolume0)) + 0.5f);
                 if(volumeSampleCount <= nrSamplesToMix)
                 {
                     nrSamplesToMix = volumeSampleCount;
@@ -93,8 +99,8 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
             }
             if(dVolume1 != 0.0f)
             {
-                r32 deltaVolume = playingSound->TargetVolume[1] - ((real32*)&volume4_1)[0];
-                i32 volumeSampleCount = (u32)((deltaVolume / dVolume1) + 0.5f);
+                r32 deltaVolume = playingSound->TargetVolume[1] - playingSound->CurrentVolume[1];
+                i32 volumeSampleCount = (u32)((deltaVolume / (1.0f*dVolume1)) + 0.5f);
                 if(volumeSampleCount <= nrSamplesToMix)
                 {
                     nrSamplesToMix = volumeSampleCount;
@@ -102,16 +108,17 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
                 }
             }
             
-            // NOTE(Joey): if we get into float precision issues; take expected begin/end sample 
+            // NOTE(Joey): we get into float precision issues; take expected begin/end sample 
             // position and set playingSound->SamplePosition to expected end sample position.
             // then get next sample position in the loop loop index and start sample position.
-            // r32 beginSamplePosition = playingSound->SamplesPlayed;
-            // r32 endSamplePosition = playingSound->SamplesPlayed + nrSamplesToMix*dSample;
-            // r32 loopIndexC = (endSamplePosition - beginSamplePosition) / (r32)nrSamplesToMix;
-            r32 samplePosition = playingSound->SamplesPlayed;
-            for(i32 i = 0; i < nrSamplesToMix; i += 4)
+            r32 beginSamplePosition = playingSound->SamplesPlayed;
+            r32 endSamplePosition = beginSamplePosition + nrSamplesToMix*dSample;
+            r32 loopIndexC = (endSamplePosition - beginSamplePosition) / (r32)nrSamplesToMix;
+            // r32 samplePosition = playingSound->SamplesPlayed;
+            // NOTE(Joey): clamp nrSamplesToMix loop condition to SIMD width of 4
+            for(i32 i = 0; i < nrSamplesToMix - (nrSamplesToMix & 3); i += 4)
             {                   
-                // r32 samplePosition = beginSamplePosition + loopIndexC*(r32)i;
+                r32 samplePosition = beginSamplePosition + loopIndexC*(r32)i;
 #if 0 // linear filtering // NOTE(Joey): disabled for now as it doesn't seem to make an 'audible' difference
                 __m128 samplePos = _mm_setr_ps(samplePosition + 0.0f*dSample,
                                                samplePosition + 1.0f*dSample,
@@ -137,8 +144,7 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
                                                  sound->Samples[0][RoundReal32ToInt32(samplePosition + 3.0f*dSample)]);
 #endif 
                 
-                // NOTE(Joey): write to 8 floats, and thus twice subsequent m128s 
-                // from the output channel; load both per channel.
+                // NOTE(Joey): write 4 SIMD wide 
                 __m128 d0 = _mm_load_ps((float*)&channel0[0]);
                 __m128 d1 = _mm_load_ps((float*)&channel1[0]); 
                 
@@ -154,11 +160,11 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
                 volume4_0 = _mm_add_ps(volume4_0, dVolume4_0);
                 volume4_1 = _mm_add_ps(volume4_1, dVolume4_1);
                              
-                samplePosition += 4.0f*dSample;
+                // samplePosition += 4.0f*dSample;
             }
             
-            playingSound->SamplesPlayed = samplePosition;
-            // playingSound->SamplesPlayed = endSamplePosition;
+            // playingSound->SamplesPlayed = samplePosition;
+            playingSound->SamplesPlayed = endSamplePosition;
             playingSound->CurrentVolume[0] = ((real32*)&volume4_0)[0];
             playingSound->CurrentVolume[1] = ((real32*)&volume4_1)[0];
             

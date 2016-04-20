@@ -67,8 +67,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PreFetchSound(&transientState->Assets, "audio/gun.wav");
         PreFetchSound(&transientState->Assets, "audio/explosion.wav");               
         
-        gameState->Music = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f, 1.5f, true);   
-        SetVolume(gameState->Music, 1.0f, 1.0f, 2.5f);
+        gameState->Music = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f, 1.0f, true);   
+        SetVolume(gameState->Music, 1.0f, 1.0f, 25.5f);
         // SetVolume(sound, 0.75f, 0.75f, 7.5f);
          
         transientState->IsInitialized = true;
@@ -115,12 +115,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 if(choice == 0) pitch = 1.15f;
                 if(choice == 1) pitch = 1.25f;
                 if(choice == 2) pitch = 0.85f;
-                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/gun.wav"), 1.0f, pitch);
+                // PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/gun.wav"), 1.0f, pitch);
+                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/gun.wav"), 1.0f, 1.0f);
                 gameState->FireDelay = 0.0f;
             }
             if (controller->LeftShoulder.EndedDown && gameState->ExplosionDelay >= 1.0f)
             {
-                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/explosion.wav"), 1.0f, 0.8f);
+                PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/explosion.wav"), 1.0f, 1.0f);
                 gameState->ExplosionDelay = 0.0f;
             }
         }
