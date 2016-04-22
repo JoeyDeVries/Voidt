@@ -127,21 +127,26 @@ internal void MixSounds(SoundMixer *mixer, uint32 sampleFrequency, __m128 *realC
                 __m128i sampleIndex = _mm_cvttps_epi32(samplePos);
                 __m128 frac = _mm_sub_ps(samplePos, _mm_cvtepi32_ps(sampleIndex));                     
                 
-                __m128 sampleValue0 = _mm_setr_ps(sound->Samples[0][((int32*)&sampleIndex)[0]],
-                                                  sound->Samples[0][((int32*)&sampleIndex)[1]],
-                                                  sound->Samples[0][((int32*)&sampleIndex)[2]],
-                                                  sound->Samples[0][((int32*)&sampleIndex)[3]]);
-                __m128 sampleValue1 = _mm_setr_ps(sound->Samples[0][((int32*)&sampleIndex)[0] + 1],
-                                                  sound->Samples[0][((int32*)&sampleIndex)[1] + 1],
-                                                  sound->Samples[0][((int32*)&sampleIndex)[2] + 1],
-                                                  sound->Samples[0][((int32*)&sampleIndex)[3] + 1]);
+                __m128 sampleValue0 = _mm_setr_ps(sound->Samples[0][((int32*)&sampleIndex)[0] % sound->SampleCount],
+                                                  sound->Samples[0][((int32*)&sampleIndex)[1] % sound->SampleCount],
+                                                  sound->Samples[0][((int32*)&sampleIndex)[2] % sound->SampleCount],
+                                                  sound->Samples[0][((int32*)&sampleIndex)[3] % sound->SampleCount]);
+                __m128 sampleValue1 = _mm_setr_ps(sound->Samples[0][(((int32*)&sampleIndex)[0] + 1) % sound->SampleCount],
+                                                  sound->Samples[0][(((int32*)&sampleIndex)[1] + 1) % sound->SampleCount],
+                                                  sound->Samples[0][(((int32*)&sampleIndex)[2] + 1) % sound->SampleCount],
+                                                  sound->Samples[0][(((int32*)&sampleIndex)[3] + 1) % sound->SampleCount]);
                                                   
                 __m128 sampleValue = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(one, frac), sampleValue0), _mm_mul_ps(frac, sampleValue1));
 #else // nearest-neighbor filtering
-                __m128 sampleValue = _mm_setr_ps(sound->Samples[0][RoundReal32ToInt32(samplePosition + 0.0f*dSample)],
-                                                 sound->Samples[0][RoundReal32ToInt32(samplePosition + 1.0f*dSample)],
-                                                 sound->Samples[0][RoundReal32ToInt32(samplePosition + 2.0f*dSample)],
-                                                 sound->Samples[0][RoundReal32ToInt32(samplePosition + 3.0f*dSample)]);
+                __m128i sampleIndex = _mm_setr_epi32(RoundReal32ToInt32(samplePosition + 0.0f*dSample) % sound->SampleCount,
+                                                     RoundReal32ToInt32(samplePosition + 1.0f*dSample) % sound->SampleCount,
+                                                     RoundReal32ToInt32(samplePosition + 2.0f*dSample) % sound->SampleCount,
+                                                     RoundReal32ToInt32(samplePosition + 3.0f*dSample) % sound->SampleCount);
+
+                __m128 sampleValue = _mm_setr_ps(sound->Samples[0][((i32*)&sampleIndex)[0]],
+                                                 sound->Samples[0][((i32*)&sampleIndex)[1]],
+                                                 sound->Samples[0][((i32*)&sampleIndex)[2]],
+                                                 sound->Samples[0][((i32*)&sampleIndex)[3]]);
 #endif 
                 
                 // NOTE(Joey): write 4 SIMD wide 

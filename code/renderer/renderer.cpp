@@ -97,7 +97,7 @@ internal void RenderPass(platform_work_queue *workQueue, RenderQueue *renderQueu
             
             if(workQueue)
             {   // NOTE(Joey): we support multithreaded rendering
-                PlatformAddWorkEntry(workQueue, DoTiledRenderWork, data);
+                PlatformAPI.AddWorkEntry(workQueue, DoTiledRenderWork, data);
             }
             else
             {   // NOTE(Joey): else render single-threaded
@@ -106,7 +106,7 @@ internal void RenderPass(platform_work_queue *workQueue, RenderQueue *renderQueu
         }
     }
     if(workQueue)
-        PlatformCompleteAllWork(workQueue);
+        PlatformAPI.CompleteAllWork(workQueue);
    
 #if 0
     for(uint32 i = 0; i < queue->RenderCount; ++i)

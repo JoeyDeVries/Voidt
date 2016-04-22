@@ -146,6 +146,46 @@ typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 #define PLATFORM_WRITE_DEBUG_OUTPUT(name) void name(const char *format, ...)
 typedef PLATFORM_WRITE_DEBUG_OUTPUT(platform_write_debug_output);
 
+/* NOTE(Joey): 
+  
+  Won't contain file handle as this is OS specific (cast to OS specific
+  file_handle when using this struct that does contain the file handle. As long as 
+  OS file handle struct contains the platform_file_handle as the first element the
+  subsequent memory of the platform_file_handle will always point to OS handle that
+  OS file function can use. This is C-alternative to polymorphism.
+  
+*/
+struct platform_file_handle 
+{
+    b32 HasErrors;
+};
+
+typedef platform_file_handle* platform_open_file(char *fileName);
+typedef void                  platform_read_file(platform_file_handle *file, u64 offset, u64 size, void* dest);
+typedef void                  platform_close_file(platform_file_handle *file);
+
+struct platform_api
+{
+    // threading
+    platform_work_queue *WorkQueueHighPriority;
+    platform_work_queue *WorkQueueLowPriority;
+    
+    platform_add_work_entry    *AddWorkEntry;
+    platform_complete_all_work *CompleteAllWork;
+    
+    // file management
+    debug_platform_free_file_memory  *DEBUGFreeFileMemory;
+    debug_platform_read_entire_file  *DEBUGReadEntireFile;
+    debug_platform_write_entire_file *DEBUGWriteEntireFile;    
+    
+    platform_open_file  *OpenFile;
+    platform_read_file  *ReadFile;
+    platform_close_file *CloseFile;
+    
+    // output
+    platform_write_debug_output *WriteDebugOutput;    
+};
+
 // needs defines from platform function hooks TODO(Joey): clean-up
 struct game_memory
 {
@@ -157,24 +197,23 @@ struct game_memory
     int64 TransientStorageSize;
     void* TransientStorage;
     
-    platform_work_queue *WorkQueueHighPriority;
-    platform_work_queue *WorkQueueLowPriority;
+    platform_api PlatformAPI;
     
-    platform_add_work_entry *PlatformAddWorkEntry;
-    platform_complete_all_work *PlatformCompleteAllWork;
+    // platform_work_queue *WorkQueueHighPriority;
+    // platform_work_queue *WorkQueueLowPriority;
     
-    debug_platform_free_file_memory  *DEBUGPlatformFreeFileMemory;
-    debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
-    debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;    
-    platform_write_debug_output      *PlatformWriteDebugOutput;
+    // platform_add_work_entry *PlatformAddWorkEntry;
+    // platform_complete_all_work *PlatformCompleteAllWork;
+    
+    // debug_platform_free_file_memory  *DEBUGPlatformFreeFileMemory;
+    // debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile;
+    // debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;    
+    // platform_write_debug_output      *PlatformWriteDebugOutput;
 };
 
 // NOTE(Joey): encapsulate this without using globals, but still keep it accesible
 // for all the game-code (logging tool)
-global_variable platform_write_debug_output *GlobalPlatformWriteDebugOutput;
-global_variable platform_add_work_entry     *PlatformAddWorkEntry;
-global_variable platform_complete_all_work  *PlatformCompleteAllWork;
-
+global_variable platform_api PlatformAPI;
 
 // ----------------------------------------------------------------------------
 //      Services that the game provides to the platform layer

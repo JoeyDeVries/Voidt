@@ -40,9 +40,6 @@ struct GameAssets
         
     volatile uint32 LoadedTextureCount;
     volatile uint32 LoadedSoundCount;
-    
-    debug_platform_read_entire_file  *DEBUGPlatformReadEntireFile; 
-    platform_work_queue *WorkQueue;
 };
 
 

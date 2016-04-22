@@ -15,10 +15,19 @@
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {   
     // NOTE(Joey): temp. debug output hook; replace with elegant platform debug output tooling.
-    GlobalPlatformWriteDebugOutput = memory->PlatformWriteDebugOutput;
+    PlatformAPI.WriteDebugOutput = memory->PlatformAPI.WriteDebugOutput;
     // function pointers for threaded work queue
-    PlatformAddWorkEntry    = memory->PlatformAddWorkEntry;
-    PlatformCompleteAllWork = memory->PlatformCompleteAllWork;
+    PlatformAPI.WorkQueueHighPriority = memory->PlatformAPI.WorkQueueHighPriority;
+    PlatformAPI.WorkQueueLowPriority  = memory->PlatformAPI.WorkQueueLowPriority;
+    PlatformAPI.AddWorkEntry          = memory->PlatformAPI.AddWorkEntry;
+    PlatformAPI.CompleteAllWork       = memory->PlatformAPI.CompleteAllWork;
+    // function pointers file API
+    PlatformAPI.DEBUGFreeFileMemory  = memory->PlatformAPI.DEBUGFreeFileMemory;
+    PlatformAPI.DEBUGReadEntireFile  = memory->PlatformAPI.DEBUGReadEntireFile;
+    PlatformAPI.DEBUGWriteEntireFile = memory->PlatformAPI.DEBUGWriteEntireFile;
+    PlatformAPI.OpenFile             = memory->PlatformAPI.OpenFile;
+    PlatformAPI.ReadFile             = memory->PlatformAPI.ReadFile;
+    PlatformAPI.CloseFile            = memory->PlatformAPI.CloseFile;
 
     // Assert((&input->Controllers[0].Back - &input->Controllers[0].Buttons[0]) == ArrayCount(input->Controllers[0].Buttons) - 1); // check if button array matches union struct members
     Assert(sizeof(game_state) <= memory->PermanentStorageSize);      
@@ -55,8 +64,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         transientState->Assets.Arena = &transientState->TransientArena;
         transientState->Assets.LoadedTextureCount = 0;
         transientState->Assets.LoadedSoundCount = 0;
-        transientState->Assets.DEBUGPlatformReadEntireFile = memory->DEBUGPlatformReadEntireFile;
-        transientState->Assets.WorkQueue = memory->WorkQueueLowPriority;
         
         // pre-fetch 
         PreFetchTexture(&transientState->Assets, "space/background.bmp");
@@ -183,7 +190,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 { 1.0f, 1.0f, 1.0f, 1.0f });
                 
     // render to target
-    RenderPass(memory->WorkQueueHighPriority, renderQueue, &screenTexture);
+    RenderPass(PlatformAPI.WorkQueueHighPriority, renderQueue, &screenTexture);
 
     // output to screen
     BlitTextureToScreen(screenBuffer, &screenTexture);

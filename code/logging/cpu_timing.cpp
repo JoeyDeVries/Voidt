@@ -29,8 +29,8 @@ void PrintCPUTiming(uint32 id)
 {
     Assert(id < ArrayCount(_CPUPerformanceBuffer));
     
-    GlobalPlatformWriteDebugOutput("CPU-ID: %i | cycles: %llu | hits: %d | cycles/hit: %llu\n",
-                                   id, _CPUPerformanceBuffer[id].TotalCycles, _CPUPerformanceBuffer[id].HitCount, 
-                                   _CPUPerformanceBuffer[id].TotalCycles / _CPUPerformanceBuffer[id].HitCount); 
+    PlatformAPI.WriteDebugOutput("CPU-ID: %i | cycles: %llu | hits: %d | cycles/hit: %llu\n",
+                                 id, _CPUPerformanceBuffer[id].TotalCycles, _CPUPerformanceBuffer[id].HitCount, 
+                                 _CPUPerformanceBuffer[id].TotalCycles / _CPUPerformanceBuffer[id].HitCount); 
     _CPUPerformanceBuffer[id] = {};
 }

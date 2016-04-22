@@ -887,6 +887,70 @@ void WorkTestEntry(platform_work_queue *queue, void *data)
     OutputDebugStringA((const char*)data);    
 }
 
+struct win32_file_handle 
+{
+    platform_file_handle H;
+    
+    HANDLE Win32Handle;    
+};
+
+internal platform_file_handle* Win32OpenFile(char *filename)
+{
+    win32_file_handle *fileHandle = 0;
+    
+    // TODO(Joey): use more flexible memory management scheme for dynamic de-allocation instead of VirtualAlloc
+    fileHandle = (win32_file_handle*)VirtualAlloc(0, sizeof(win32_file_handle), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    
+    if(fileHandle)
+    {
+        fileHandle->Win32Handle = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+        fileHandle->H.HasErrors = fileHandle->Win32Handle != INVALID_HANDLE_VALUE;
+    }  
+    
+    return (platform_file_handle*)fileHandle;
+}
+
+internal void Win32ReadFile(platform_file_handle *file, u64 offset, u64 size, void *dest)
+{
+    if(!file->HasErrors)
+    {
+        win32_file_handle *handle = (win32_file_handle*)file;
+        OVERLAPPED overlapped = {};
+        overlapped.Offset     = (u32)((offset >>  0) & 0xFFFFFFFF);
+        overlapped.OffsetHigh = (u32)((offset >> 32) & 0xFFFFFFFF);
+        
+        // NOTE(Joey): we make the assumption a file is no larger than 64 here
+        // due to windows max 32-bit file size limiation; will fix this later on.        
+        u32 fileSize32;
+        if(size == 0) // NOTE(Joey): if no size specified: read full file
+        {
+            LARGE_INTEGER fileSize;
+            if(GetFileSizeEx(handle->Win32Handle, &fileSize))
+                fileSize32 = SafeTruncateUInt64(fileSize.QuadPart);
+        }
+        else
+        {        
+            fileSize32 = SafeTruncateUInt64(size);
+        }
+        
+        DWORD bytesRead;
+        if(ReadFile(handle->Win32Handle, dest, fileSize32, &bytesRead, &overlapped) && fileSize32 == bytesRead)
+        {
+            // success
+        }
+        else
+        {
+            file->HasErrors = true;
+        }        
+    }
+}
+
+internal void Win32CloseFile(platform_file_handle *file)
+{
+    win32_file_handle *handle = (win32_file_handle*)file;
+    CloseHandle(handle->Win32Handle);
+}
+
 int CALLBACK WinMain(
 	HINSTANCE instance,
 	HINSTANCE prevInstance,
@@ -1003,15 +1067,15 @@ int CALLBACK WinMain(
             // win32State.GameReplayMemoryBlock= VirtualAlloc(0, (size_t)win32State.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
             gameMemory.PermanentStorage     = win32State.GameMemoryBlock;
             gameMemory.TransientStorage     = (uint8 *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;            
-            gameMemory.DEBUGPlatformFreeFileMemory  = DEBUGPlatformFreeFileMemory;
-            gameMemory.DEBUGPlatformReadEntireFile  = DEBUGPlatformReadEntireFile;
-            gameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
-            gameMemory.PlatformWriteDebugOutput     = Win32WriteDebugOutput;
+            gameMemory.PlatformAPI.DEBUGFreeFileMemory   = DEBUGPlatformFreeFileMemory;
+            gameMemory.PlatformAPI.DEBUGReadEntireFile   = DEBUGPlatformReadEntireFile;
+            gameMemory.PlatformAPI.DEBUGWriteEntireFile = DEBUGPlatformWriteEntireFile;
+            gameMemory.PlatformAPI.WriteDebugOutput      = Win32WriteDebugOutput;
             
-            gameMemory.WorkQueueHighPriority        = &queueHighPriority;
-            gameMemory.WorkQueueLowPriority         = &queueLowPriority;
-            gameMemory.PlatformAddWorkEntry         = Win32AddWorkEntry;
-            gameMemory.PlatformCompleteAllWork      = Win32CompleteAllWork;
+            gameMemory.PlatformAPI.WorkQueueHighPriority = &queueHighPriority;
+            gameMemory.PlatformAPI.WorkQueueLowPriority  = &queueLowPriority;
+            gameMemory.PlatformAPI.AddWorkEntry          = Win32AddWorkEntry;
+            gameMemory.PlatformAPI.CompleteAllWork       = Win32CompleteAllWork;
             
             for(int i = 0; i < 4; ++i)
             {

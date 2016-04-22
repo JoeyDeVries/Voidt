@@ -34,7 +34,7 @@ void DoBackgroundTextureLoadWork(platform_work_queue *queue, void* data)
                                                 currTexturePos);
     if(nextTexturePos == currTexturePos)
     {
-        Texture texture = LoadTexture(assetData->Assets->DEBUGPlatformReadEntireFile, assetData->FileName);
+        Texture texture = LoadTexture(PlatformAPI.DEBUGReadEntireFile, assetData->FileName);
                 
         LoadedTexture loaded;
         loaded.Asset = texture;
@@ -54,7 +54,7 @@ void DoBackgroundSoundLoadWork(platform_work_queue *queue, void* data)
                                                 currSoundPos);
     if(nextSoundPos == currSoundPos)
     {
-        Sound sound = LoadWAV(assetData->Assets->DEBUGPlatformReadEntireFile, assetData->FileName);
+        Sound sound = LoadWAV(PlatformAPI.DEBUGReadEntireFile, assetData->FileName);
         
         LoadedSound loaded;
         loaded.Asset = sound;
@@ -86,7 +86,7 @@ internal Texture* GetTexture(GameAssets *assets, char *name, bool forceLoad = fa
         if(forceLoad)
         {   // load right now, don't wait for background thread
     
-            Texture texturez = LoadTexture(assets->DEBUGPlatformReadEntireFile, name);
+            Texture texturez = LoadTexture(PlatformAPI.DEBUGReadEntireFile, name);
             assets->Textures[assets->LoadedTextureCount].Asset = texturez;
             assets->Textures[assets->LoadedTextureCount].Name = PushString(assets->Arena, name);
             texture = &assets->Textures[assets->LoadedTextureCount].Asset;
@@ -99,7 +99,7 @@ internal Texture* GetTexture(GameAssets *assets, char *name, bool forceLoad = fa
             data->FileName = PushString(assets->Arena, name);
             
             // TODO(Joey): make sure to de-allocate memory once task is done (see task_with_memory)
-            PlatformAddWorkEntry(assets->WorkQueue, DoBackgroundTextureLoadWork, data);
+            PlatformAPI.AddWorkEntry(PlatformAPI.WorkQueueLowPriority, DoBackgroundTextureLoadWork, data);
         }
 
 
@@ -131,7 +131,7 @@ internal Sound* GetSound(GameAssets *assets, char *name, bool forceLoad = false)
     {              
         if(forceLoad)
         {   // load right now, don't wait for background thread
-            Sound soundz = LoadWAV(assets->DEBUGPlatformReadEntireFile, name);
+            Sound soundz = LoadWAV(PlatformAPI.DEBUGReadEntireFile, name);
             assets->Sounds[assets->LoadedSoundCount].Asset = soundz;
             assets->Sounds[assets->LoadedSoundCount].Name = PushString(assets->Arena, name);
             // TODO(Joey): make PushString and store const char* memory in arena (as memory addresses
@@ -145,7 +145,7 @@ internal Sound* GetSound(GameAssets *assets, char *name, bool forceLoad = false)
             data->Assets = assets;
             data->FileName = PushString(assets->Arena, name);
             
-            PlatformAddWorkEntry(assets->WorkQueue, DoBackgroundSoundLoadWork, data);      
+            PlatformAPI.AddWorkEntry(PlatformAPI.WorkQueueLowPriority, DoBackgroundSoundLoadWork, data);      
         }
     }
     
