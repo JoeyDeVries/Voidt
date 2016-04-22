@@ -15,7 +15,7 @@
 struct random_series
 {
     uint32 Index;    
-    uint32 MaxRandom;
+    uint32 Modulo;
 };
 
 #endif

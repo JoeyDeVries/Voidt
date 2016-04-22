@@ -46,7 +46,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         gameState->Mixer.MixerArena = mixerArena;        
         InitSoundMixer(&gameState->Mixer);
 
-        GlobalRandom = Seed(1337);
+        GlobalRandom = Seed(1337, 65536);
+        
+        // generate entities
+        gameState->PlayerPos = { 0.0f, 0.0f };
+        
+        for(u32 i = 0; i < ArrayCount(gameState->Entities); ++i)
+        {
+            gameState->Entities[i]= {};
+            gameState->Entities[i].Position.x = RandomBetween(&GlobalRandom, -1000.0f, 1000.0f);
+            gameState->Entities[i].Position.y = RandomBetween(&GlobalRandom, -1000.0f, 1000.0f);
+            gameState->Entities[i].Size.x     = RandomBetween(&GlobalRandom, -250.0f,  250.0f);
+            gameState->Entities[i].Size.y     = RandomBetween(&GlobalRandom, -250.0f,  250.0f);
+        }                
         
         gameState->IsInitialized = true;
     }            
@@ -134,6 +146,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
     }
     
+    //////////////////////////////////////////////////////////
+    //       SIMULATION
+    //////////////////////////////////////////////////////////    
+    
+    // TODO(Joey): define proper simulation region for managing all entities in the game
     
     
     //////////////////////////////////////////////////////////
@@ -160,8 +177,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     // player
     vector2D cameraPos = gameState->CameraPos;
-    vector2D playerPos = { -50.0f, 100.0f };
-    vector2D playerRelCamera = playerPos - cameraPos; 
+    vector2D playerPos = gameState->PlayerPos;
+    // vector2D playerRelCamera = playerPos - cameraPos; 
+    vector2D playerRelCamera = playerPos; 
     
     vector2D basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     vector2D basisY = Perpendicular(basisX);

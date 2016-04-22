@@ -32,6 +32,8 @@
 #include "common/asset.h"
 #include "common/asset.cpp"
 
+#include "entities/entity.h"
+
 
 
 inline game_controller_input* GetController(game_input *input, uint32 controllerIndex)
@@ -59,6 +61,10 @@ struct game_state
 
     real32 TimePassed;
     vector2D CameraPos;
+    vector2D PlayerPos;
+    
+    // entities
+    game_entity Entities[1024];
     
     // audio/sound
     SoundMixer Mixer;

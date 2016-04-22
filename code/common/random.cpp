@@ -12,18 +12,22 @@
 
 global_variable random_series GlobalRandom;
 
-inline random_series Seed(uint32 value)
+inline random_series Seed(u32 value, u32 modulo = 65536)
 {
     random_series series = {};
     
     series.Index = value;
+    series.Modulo = modulo;
     return series;
 }
 
 inline uint32 RandomNextUInt32(random_series *series)
 {
-    // TODO(Joey): write PRNG here
-    return ++series->Index;
+    // PRNG: Linear Congruential Generator 
+    u32 a = 1103515245;
+    u32 c = 12345;
+    series->Index = (a * series->Index + c) % series->Modulo;
+    return series->Index;
 }
 
 inline uint32 RandomChoice(random_series *series, uint32 count)
@@ -34,7 +38,7 @@ inline uint32 RandomChoice(random_series *series, uint32 count)
 
 inline real32 RandomUniliteral(random_series *series)
 {
-    real32 divisor = 1.0f / series->MaxRandom;
+    real32 divisor = 1.0f / series->Modulo;
     real32 result = divisor*(real32)RandomNextUInt32(series);
     return result;
 }
