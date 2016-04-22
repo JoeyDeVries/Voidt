@@ -105,7 +105,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // if(controllerIndex == 0)
         {            
             // movement tuning
-            real32 cameraSpeed = 4.0f;
+            real32 cameraSpeed = 2.5f;
             if(controller->MoveUp.EndedDown)
             {
                 // controlledPlayer->Acceleration.y =  1.0f;
@@ -149,9 +149,23 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //////////////////////////////////////////////////////////
     //       SIMULATION
     //////////////////////////////////////////////////////////    
+    rectangle2D simBounds = {};
+    vector2D simRegionSize = { 100.0f, 100.0f };
+    simBounds.Min = gameState->CameraPos - 0.5f*simRegionSize;
+    simBounds.Max = gameState->CameraPos + 0.5f*simRegionSize;    
     
-    // TODO(Joey): define proper simulation region for managing all entities in the game
     
+    sim_region *simRegion = BeginSimulation(gameState, transientArena, gameState->CameraPos, simBounds);    
+    
+    // NOTE(Joey): now do game logic on all sim entities
+    for(u32 i = 0; i < simRegion->EntityCount; ++i)
+    {
+        
+        
+    }
+    
+    EndSimulation(gameState, simRegion);
+        
     
     //////////////////////////////////////////////////////////
     //       RENDER

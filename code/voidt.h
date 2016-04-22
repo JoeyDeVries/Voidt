@@ -16,8 +16,8 @@
 #include "common/platform_work_queue.h"
 #include "voidt_platform.h"
 #include "common/memory.h"
-#include "intrinsics.h"
 #include "common/random.h"
+#include "intrinsics.h"
 #include "math/math.h"
 
 #include "logging/cpu_timing.h"
@@ -28,12 +28,10 @@
 #include "renderer/renderer.cpp"
 #include "audio/sound.h"
 #include "audio/sound.cpp"
-
 #include "common/asset.h"
 #include "common/asset.cpp"
 
 #include "entities/entity.h"
-
 
 
 inline game_controller_input* GetController(game_input *input, uint32 controllerIndex)
@@ -85,5 +83,7 @@ struct TransientState
     GameAssets Assets;        
 };
 
+#include "entities/sim_region.h"
+#include "entities/sim_region.cpp"
 
 #endif

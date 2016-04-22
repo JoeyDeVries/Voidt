@@ -9,6 +9,7 @@
 ** Creative Commons, either version 4 of the License, or (at your
 ** option) any later version.
 *******************************************************************/
+#if 0
 internal sim_entity_hash* GetHashFromStorageIndex(sim_region *simRegion, uint32 storageIndex)
 {
     Assert(storageIndex);
@@ -133,7 +134,53 @@ internal sim_entity* AddEntity(game_state *gameState, sim_region *simRegion, uin
     }
     return dest;
 }
+#endif
 
+internal sim_region *BeginSimulation(game_state *gameState, memory_arena *arena, vector2D center, rectangle2D bounds)
+{      
+    sim_region *simRegion = PushStruct(arena, sim_region);
+    simRegion->Center = center;
+    simRegion->Bounds = bounds;
+    simRegion->EntityCount = 0;
+    
+    rectangle2D testRect;
+    testRect.Min = center + bounds.Min;
+    testRect.Max = center + bounds.Max;
+    
+    // TODO(Joey): split universe up in chunks/regions of entities to efficiently 
+    // determine which regions of enemies are close to consider for simulation 
+    // (otherwise we'd have to search the entire universe space).
+    for(u32 i = 0; i < ArrayCount(gameState->Entities); ++i)
+    {
+        game_entity *gameEntity = gameState->Entities + i;
+        if(IsInRectangle(testRect, gameEntity->Position))
+        {
+            sim_entity simEntity = {};
+            simEntity.Position = gameEntity->Position;
+            simEntity.Size = gameEntity->Size;
+            simEntity.GameEntityIndex = i;
+            
+            simRegion->Entities[simRegion->EntityCount++] = simEntity;
+        }
+    }
+    
+    return simRegion;    
+}
+
+internal void EndSimulation(game_state *gameState, sim_region *simRegion)
+{
+    // NOTE(Joey): store all sim entity data back to original GameEntity storage
+    for(u32 i = 0; i < simRegion->EntityCount; ++i)
+    {
+        sim_entity *simEntity = simRegion->Entities + i;
+        game_entity *gameEntity = gameState->Entities + simEntity->GameEntityIndex;
+        
+        gameEntity->Position = simEntity->Position;
+        gameEntity->Size = simEntity->Size;
+    }    
+}
+
+#if 0 
 internal sim_region* BeginSimulation(memory_arena *simArena, game_state *gameState, game_world *world, real32 dt, world_position origin, rectangle3D bounds)
 {       
     sim_region *simRegion = PushStruct(simArena, sim_region);
@@ -230,8 +277,9 @@ internal void EndSimulation(sim_region *region, game_state *gameState)
   
     }    
 }
+#endif
 
-
+#if 0
 internal bool32 TestWall(real32 wallX, real32 relX, real32 relY, real32 playerDeltaX, real32 playerDeltaY, real32 *tMin, real32 minY, real32 maxY)
 {
     real32 tEpsilon = 0.01f;
@@ -538,3 +586,4 @@ internal void MoveEntity(game_state *gameState, sim_region *simRegion, sim_entit
         entity->FacingDirection = entity->Velocity.Y > 0 ? 1 : 3;
     }       
 }
+#endif

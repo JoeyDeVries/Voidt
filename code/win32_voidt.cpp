@@ -1026,7 +1026,7 @@ int CALLBACK WinMain(
             ReleaseDC(Window, dc);
             if(win32RefreshRate > 1)
                 monitorRefreshHz = win32RefreshRate;
-            real32 gameUpdateHz = (real32)(monitorRefreshHz / 2.0f);
+            real32 gameUpdateHz = (real32)(monitorRefreshHz / 1.0f);
             real32 targetSecondsPerFrame = 1.0f / (real32)gameUpdateHz;
     
     

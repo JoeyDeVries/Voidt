@@ -84,7 +84,7 @@ inline bool32 IsInRectangle(rectangle2D rectangle, vector2D test)
                     test.x  < rectangle.Max.x &&
                     test.y  < rectangle.Max.y;
     
-    return true;
+    return result;
 }
 
 
@@ -99,7 +99,7 @@ Intersect(rectangle2Di a, rectangle2Di b)
     result.MaxX = (a.MaxX > b.MaxX) ? b.MaxX : a.MaxX;
     result.MaxY = (a.MaxY > b.MaxY) ? b.MaxY : a.MaxY;    
 
-    return(result);
+    return result;
 }
 
 inline rectangle2Di
@@ -112,7 +112,7 @@ Union(rectangle2Di a, rectangle2Di b)
     result.MaxX = (a.MaxX > b.MaxX) ? a.MaxX : b.MaxX;
     result.MaxY = (a.MaxY > b.MaxY) ? a.MaxY : b.MaxY;
 
-    return(result);
+    return result;
 }
 
 inline int32
@@ -126,7 +126,7 @@ GetClampedRectArea(rectangle2Di a)
         result = width*height;
     }
 
-    return(result);
+    return result;
 }
 
 inline bool32
@@ -134,7 +134,7 @@ HasArea(rectangle2Di a)
 {
     bool32 result = ((a.MinX < a.MaxX) && (a.MinY < a.MaxY));
 
-    return(result);
+    return result;
 }
 
 inline rectangle2Di
@@ -146,7 +146,7 @@ InvertedInfinityRectangle(void)
     result.MinX = result.MinY =  1000000;
     result.MaxX = result.MaxY = -1000000;
 
-    return(result);
+    return result;
 }
 
 #endif  

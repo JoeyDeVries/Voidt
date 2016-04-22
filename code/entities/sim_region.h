@@ -12,6 +12,7 @@
 #ifndef SIMULATION_REGION_H
 #define SIMULATION_REGION_H
 
+#if 0
 struct move_spec
 {
     bool32 UnitMaxAccelVector;
@@ -109,6 +110,24 @@ struct sim_region
     sim_entity *Entities;    
     
     sim_entity_hash Hash[4096];
+};
+#endif
+
+struct sim_entity
+{
+    u32 GameEntityIndex;
+    
+    vector2D Position; 
+    vector2D Size;    
+};
+
+struct sim_region
+{
+    vector2D    Center;
+    rectangle2D Bounds;
+        
+    sim_entity  Entities[1024];
+    u32         EntityCount;
 };
 
 
