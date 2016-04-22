@@ -72,23 +72,39 @@ inline char* PushString(memory_arena *arena, char *string)
 }
 
 
+inline memory_arena SubArena(memory_arena *arena, memory_index size, memory_index alignment = 16)
+{
+    memory_arena result = {};
+    result.Size = size;
+    result.Base = (uint8*)PushSize_(arena, size, alignment);
+    result.Used = 0;
+    result.TempCount = 0;
+    return result;
+}
+
+inline void
+CheckArena(memory_arena *arena)
+{
+    Assert(arena->TempCount == 0);
+}
+
 // temp memory (stack-based allocation)
-struct TempMemory
+struct temp_memory
 {
     memory_arena *Arena;
     memory_index  Used;
 };
 
-inline TempMemory BeginTempMemory(memory_arena *arena)
+inline temp_memory BeginTempMemory(memory_arena *arena)
 {
-    TempMemory tempMemory;
+    temp_memory tempMemory;
     tempMemory.Arena = arena;
     tempMemory.Used = arena->Used;
     arena->TempCount++;
     return tempMemory;
 }
 
-inline void EndTempMemory(TempMemory tempMemory)
+inline void EndTempMemory(temp_memory tempMemory)
 {
     Assert(tempMemory.Arena->Used >= tempMemory.Used);
     Assert(tempMemory.Arena->TempCount > 0);
@@ -96,5 +112,6 @@ inline void EndTempMemory(TempMemory tempMemory)
     tempMemory.Arena->Used = tempMemory.Used;
     tempMemory.Arena->TempCount--;
 }
+
 
 #endif

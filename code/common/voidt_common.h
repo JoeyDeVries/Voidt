@@ -72,9 +72,9 @@ typedef double r64;
 #define Minimum(A, B) ((A < B) ? (A) : (B))
 #define Maximum(A, B) ((A > B) ? (A) : (B))
 
-#define Kilobytes(Value) ((Value) * 1024LL)
-#define Megabytes(Value) (Kilobytes(Value)*1024LL)
-#define Gigabytes(Value) (Megabytes(Value)*1024LL)
+#define KiloBytes(Value) ((Value) * 1024LL)
+#define MegaBytes(Value) (KiloBytes(Value)*1024LL)
+#define GigaBytes(Value) (MegaBytes(Value)*1024LL)
 
 #define ArrayCount(array) (sizeof(array) / sizeof((array)[0]))
 

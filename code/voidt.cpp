@@ -39,10 +39,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if(!gameState->IsInitialized)
     {                                    
         // TODO(Joey): generate procedural world here
-        InitializeArena(&gameState->WorldArena, Megabytes(32), (uint8*)memory->PermanentStorage + sizeof(game_state));        
+        InitializeArena(&gameState->WorldArena, MegaBytes(32), (uint8*)memory->PermanentStorage + sizeof(game_state));        
         
         memory_arena mixerArena = {};
-        InitializeArena(&mixerArena, Megabytes(1), gameState->WorldArena.Base + gameState->WorldArena.Size);
+        InitializeArena(&mixerArena, MegaBytes(1), gameState->WorldArena.Base + gameState->WorldArena.Size);
         gameState->Mixer.MixerArena = mixerArena;        
         InitSoundMixer(&gameState->Mixer);
 
@@ -54,10 +54,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         for(u32 i = 0; i < ArrayCount(gameState->Entities); ++i)
         {
             gameState->Entities[i]= {};
-            gameState->Entities[i].Position.x = RandomBetween(&GlobalRandom, -1000.0f, 1000.0f);
-            gameState->Entities[i].Position.y = RandomBetween(&GlobalRandom, -1000.0f, 1000.0f);
-            gameState->Entities[i].Size.x     = RandomBetween(&GlobalRandom, -250.0f,  250.0f);
-            gameState->Entities[i].Size.y     = RandomBetween(&GlobalRandom, -250.0f,  250.0f);
+            gameState->Entities[i].Position.x = RandomBetween(&GlobalRandom, -250.0f, 250.0f);
+            gameState->Entities[i].Position.y = RandomBetween(&GlobalRandom, -250.0f, 250.0f);
+            gameState->Entities[i].Size.x     = Max(RandomBetween(&GlobalRandom, -10.0f,  10.0f), 2.0f);
+            gameState->Entities[i].Size.y     = Max(RandomBetween(&GlobalRandom, -10.0f,  10.0f), 2.0f);
         }                
         
         gameState->IsInitialized = true;
@@ -105,7 +105,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // if(controllerIndex == 0)
         {            
             // movement tuning
-            real32 cameraSpeed = 2.5f;
+            real32 cameraSpeed = 0.1f;
             if(controller->MoveUp.EndedDown)
             {
                 // controlledPlayer->Acceleration.y =  1.0f;
@@ -148,12 +148,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     //////////////////////////////////////////////////////////
     //       SIMULATION
-    //////////////////////////////////////////////////////////    
-    rectangle2D simBounds = {};
+    //////////////////////////////////////////////////////////       
+    temp_memory simMemory = BeginTempMemory(transientArena);
     vector2D simRegionSize = { 100.0f, 100.0f };
-    simBounds.Min = gameState->CameraPos - 0.5f*simRegionSize;
-    simBounds.Max = gameState->CameraPos + 0.5f*simRegionSize;    
-    
+    rectangle2D simBounds = { -0.5f*simRegionSize, 0.5f*simRegionSize };   
     
     sim_region *simRegion = BeginSimulation(gameState, transientArena, gameState->CameraPos, simBounds);    
     
@@ -164,16 +162,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
     }
     
-    EndSimulation(gameState, simRegion);
+    
         
     
     //////////////////////////////////////////////////////////
     //       RENDER
     //////////////////////////////////////////////////////////         
+    const r32 METERS_TO_PIXELS = 25.0f;
+    const r32 PIXELS_TO_METERS = 1.0f / METERS_TO_PIXELS;
     // TODO(Joey): make sure no other allocations happen in transient arena in the meantime
     // like: allocation of assets when requested (make sure this happens in different arena 
     // otherwise).
-    TempMemory tempRenderMemory = BeginTempMemory(transientArena);
+    temp_memory tempRenderMemory = BeginTempMemory(transientArena);
     
     Texture screenTexture = CreateEmptyTexture(transientArena, screenBuffer->Width, screenBuffer->Height);
     RenderQueue *renderQueue = CreateRenderQueue(transientArena, 256); 
@@ -199,7 +199,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     vector2D basisY = Perpendicular(basisX);
     PushTexture(renderQueue, 
                 GetTexture(&transientState->Assets, "space/player.bmp"), 
-                screenCenter + playerRelCamera, 
+                screenCenter + METERS_TO_PIXELS*playerRelCamera, 
                 0,
                 { (real32)80, (real32)100 },
                 basisX,
@@ -207,19 +207,35 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 { 1.0f, 1.0f, 1.0f, 0.5f });
 
     // enemy
-    vector2D enemyPos = { 350.0f, -150.0f };
+    vector2D enemyPos = { 350.0f*PIXELS_TO_METERS, -150.0f*PIXELS_TO_METERS };
     vector2D enemeyRelCamera = enemyPos - cameraPos;
     angle = 42.30f + gameState->TimePassed * 0.1f;
     basisX = Normalize({ (real32)cos(angle), (real32)sin(angle)});
     basisY = Perpendicular(basisX);
     PushTexture(renderQueue, 
                 GetTexture(&transientState->Assets, "space/enemy.bmp"),
-                screenCenter + enemeyRelCamera,
+                screenCenter + METERS_TO_PIXELS*enemeyRelCamera,
                 0,
                 { 200.0f, 200.0f }, 
                 basisX, 
                 basisY, 
                 { 1.0f, 1.0f, 1.0f, 1.0f });
+                
+    // render all sim entities
+    for(u32 i = 0; i < simRegion->EntityCount; ++i)
+    {
+        sim_entity *entity = simRegion->Entities + i;
+        vector2D relCamera = entity->Position - cameraPos;
+        PushTexture(renderQueue, 
+                    GetTexture(&transientState->Assets, "space/enemy.bmp"),
+                    screenCenter + METERS_TO_PIXELS*relCamera,
+                    0,
+                    METERS_TO_PIXELS*entity->Size,
+                    basisX,
+                    basisY,
+                    { 1.0f, 1.0f, 0.3f, 0.5f });
+                    
+    }
                 
     // render to target
     RenderPass(PlatformAPI.WorkQueueHighPriority, renderQueue, &screenTexture);
@@ -227,7 +243,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // output to screen
     BlitTextureToScreen(screenBuffer, &screenTexture);
     
+    EndSimulation(gameState, simRegion);
     EndTempMemory(tempRenderMemory);
+    EndTempMemory(simMemory);
+    
+    CheckArena(&gameState->WorldArena);
+    CheckArena(transientArena);
 
     // PrintCPUTiming(0);
     // PrintCPUTiming(1);
@@ -241,7 +262,7 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
     
     // OutputTestSineWave(soundBuffer, 412);
     
-    TempMemory mixResultMemory = BeginTempMemory(&gameState->Mixer.MixerArena);
+    temp_memory mixResultMemory = BeginTempMemory(&gameState->Mixer.MixerArena);
     
     // NOTE(Joey): mix in 8-packed 16 bit samples at a time in 128 bit SIMD registers
     Assert((soundBuffer->SampleCount & 3) == 0);

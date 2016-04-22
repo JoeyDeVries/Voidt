@@ -1042,8 +1042,7 @@ int CALLBACK WinMain(
             soundOutput.runningSampleIndex  = 0;
             soundOutput.bytesPerSample      = sizeof(int16) * 2;
             soundOutput.secondaryBufferSize = soundOutput.samplesPerSecond * soundOutput.bytesPerSample;
-            // soundOutput.latencySampleCount  = 3 * (soundOutput.samplesPerSecond / gameUpdateHz);
-            soundOutput.SafetyBytes         = (int)(((real32)soundOutput.samplesPerSecond*(real32)soundOutput.bytesPerSample / gameUpdateHz) / 2.0f);
+            soundOutput.SafetyBytes         = (int)(((real32)soundOutput.samplesPerSecond*(real32)soundOutput.bytesPerSample / gameUpdateHz) / 1.0f); // / 2.0f when 30 fps
 
             Win32InitDSound(Window, soundOutput.samplesPerSecond, soundOutput.secondaryBufferSize); 
             Win32ClearBuffer(&soundOutput);
@@ -1055,13 +1054,13 @@ int CALLBACK WinMain(
                                                    MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
             
             #if INTERNAL
-                LPVOID baseAddress       = (LPVOID)Gigabytes(2048);
+                LPVOID baseAddress       = (LPVOID)GigaBytes(2048);
             #else
                 LPVOID baseAddress       = 0;
             #endif
             game_memory gameMemory = {};
-            gameMemory.PermanentStorageSize = Megabytes(64);
-            gameMemory.TransientStorageSize = Megabytes(64) /*Gigabytes(1)*/;
+            gameMemory.PermanentStorageSize = MegaBytes(64);
+            gameMemory.TransientStorageSize = MegaBytes(64) /*Gigabytes(1)*/;
             win32State.TotalSize            = gameMemory.PermanentStorageSize + gameMemory.TransientStorageSize;
             win32State.GameMemoryBlock      = VirtualAlloc(baseAddress, (size_t)win32State.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
             // win32State.GameReplayMemoryBlock= VirtualAlloc(0, (size_t)win32State.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);

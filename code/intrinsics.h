@@ -29,6 +29,16 @@ inline real32 Absolute(real32 value)
     return (real32)fabs(value);
 }
 
+inline real32 Min(real32 a, real32 b)
+{
+    return a <= b ? a : b;
+}
+
+inline real32 Max(real32 a, real32 b)
+{
+    return a >= b ? a : b;
+}
+
 inline uint32 RotateLeft(uint32 value, uint32 amount)
 {
 #if COMPILER_MSVC
