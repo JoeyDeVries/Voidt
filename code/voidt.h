@@ -31,6 +31,8 @@
 #include "audio/sound.cpp"
 #include "common/asset.h"
 #include "common/asset.cpp"
+#include "renderer/text.h"
+#include "renderer/text.cpp"
 
 #include "entities/entity.h"
 
@@ -64,6 +66,8 @@ struct game_state
     
     // entities
     game_entity Entities[1024];
+    
+    Texture letterN;
     
     // audio/sound
     SoundMixer Mixer;

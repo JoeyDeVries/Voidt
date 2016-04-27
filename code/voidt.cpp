@@ -86,7 +86,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         PreFetchSound(&transientState->Assets, "audio/music.wav", true);
         PreFetchSound(&transientState->Assets, "audio/gun.wav");
-        PreFetchSound(&transientState->Assets, "audio/explosion.wav");               
+        PreFetchSound(&transientState->Assets, "audio/explosion.wav");            
+
+        stbtt_fontinfo font = LoadTrueTypeFont("C:/Windows/Fonts/Calibri.ttf");
+        gameState->letterN = LoadCharacterGlyph(&transientState->TransientArena, font, 'N', 128.0f);
         
         gameState->Music = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f, 1.0f, true);   
         SetVolume(gameState->Music, 1.0f, 1.0f, 25.5f);
@@ -229,13 +232,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         sim_entity *entity = simRegion->Entities + i;
         vector2D relCamera = entity->Position - cameraPos;
         PushTexture(renderQueue, 
-                    GetTexture(&transientState->Assets, "space/enemy.bmp"),
+                    // GetTexture(&transientState->Assets, "space/enemy.bmp"),
+                    &gameState->letterN,
                     screenCenter + METERS_TO_PIXELS*relCamera,
                     0,
                     METERS_TO_PIXELS*entity->Size,
                     basisX,
                     basisY,
-                    { 1.0f, 1.0f, 0.3f, 0.5f });
+                    { 1.0f, 1.0f, 1.0f, 1.0f });
                     
     }
                 
