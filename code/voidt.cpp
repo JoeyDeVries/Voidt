@@ -41,8 +41,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // TODO(Joey): generate procedural world here
         InitializeArena(&gameState->WorldArena, MegaBytes(32), (uint8*)memory->PermanentStorage + sizeof(game_state));        
         
-        memory_arena mixerArena = {};
-        InitializeArena(&mixerArena, MegaBytes(1), gameState->WorldArena.Base + gameState->WorldArena.Size);
+        memory_arena mixerArena = SubArena(&gameState->WorldArena,  MegaBytes(1));
         gameState->Mixer.MixerArena = mixerArena;        
         InitSoundMixer(&gameState->Mixer);
 
@@ -74,8 +73,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         // allocate game assets
         transientState->Assets.Arena = &transientState->TransientArena;
+        transientState->Assets.Memory = GenerateGeneralPurposeAllocater(&transientState->TransientArena, MegaBytes(16));
         transientState->Assets.LoadedTextureCount = 0;
         transientState->Assets.LoadedSoundCount = 0;
+        
+        GetGeneralMemory(transientState->Assets.Memory, MegaBytes(2));
         
         // pre-fetch 
         PreFetchTexture(&transientState->Assets, "space/background.bmp");

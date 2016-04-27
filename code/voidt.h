@@ -16,6 +16,7 @@
 #include "common/platform_work_queue.h"
 #include "voidt_platform.h"
 #include "common/memory.h"
+#include "common/memory.cpp"
 #include "common/random.h"
 #include "intrinsics.h"
 #include "math/math.h"

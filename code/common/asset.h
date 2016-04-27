@@ -12,9 +12,18 @@
 #ifndef ASSET_H
 #define ASSET_H
 
-enum asset_type {
-    ASSET_TYPE_TEXTURE,
-    ASSET_TYPE_SOUND,
+enum asset_flags {
+    // asset type
+    ASSET_TYPE_MASK    = 0x00FF,
+    ASSET_TYPE_SOUND   = 0x0001,
+    ASSET_TYPE_TEXTURE = 0x0002,
+    
+    // asset state
+    ASSET_STATE_MASK     = 0xFF00,
+    ASSET_STATE_QUEUED   = 0x0100,
+    ASSET_STATE_LOCKED   = 0x0200,
+    ASSET_STATE_UNLOADED = 0x0400,
+    ASSET_STATE_LOADED   = 0x0800,
 };
 
 struct LoadedTexture
@@ -29,17 +38,42 @@ struct LoadedSound
     char *Name;    
 };
 
+struct Asset
+{
+    memory_block *Memory;
+    
+    char *Name;
+    u32   ReferenceCount;
+    u32   DataMemorySize;
+    
+    u16   Flags;
+    
+    union
+    {
+        Sound   SoundAsset;
+        Texture TextureAsset;
+    };    
+};
+
 const int MAX_ASSETS = 256;
 struct GameAssets
 {
     memory_arena *Arena;
+    general_purpose_allocater *Memory;
     
-    // TODO(Joey): transform static list to hash table (more efficient|flexible scheme)
     LoadedTexture Textures[MAX_ASSETS];
     LoadedSound   Sounds[MAX_ASSETS];   
+    
+    // TODO(Joey): use unified asset loading system for easy load|eviction
+    // TODO(Joey): transform unified system to hash table
+    Asset         Assets[MAX_ASSETS];
+    
+    u64 MemoryInUse;
+    u64 MemoryMax;
+    u32 MemorySafetyRegion;
         
-    volatile uint32 LoadedTextureCount;
-    volatile uint32 LoadedSoundCount;
+    volatile u32 LoadedTextureCount;
+    volatile u32 LoadedSoundCount;
 };
 
 

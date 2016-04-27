@@ -113,5 +113,33 @@ inline void EndTempMemory(temp_memory tempMemory)
     tempMemory.Arena->TempCount--;
 }
 
+///////////////////////////////////
+//   GENERAL PURPOSE ALLOCATER
+///////////////////////////////////
+const memory_index BLOCK_SPLIT_THRESHOLD = 4096;
+
+enum memory_block_flags
+{
+    MEMORY_BLOCK_USED = 0x1,    
+};
+
+struct memory_block 
+{
+    memory_block *Prev;
+    memory_block *Next;
+    
+    memory_index Size;
+    u64          Flags;
+    
+    void        *Memory;
+};
+
+struct general_purpose_allocater
+{    
+    memory_block Sentinel;
+    
+    memory_index TotalMemory;
+    memory_index MemoryUsed;
+};
 
 #endif

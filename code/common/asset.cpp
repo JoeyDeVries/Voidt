@@ -161,3 +161,40 @@ internal void PreFetchSound(GameAssets *assets, char *name, bool forceLoad = fal
 {
     GetSound(assets, name, forceLoad);
 }
+
+internal void EvictAssetsAsNecessary(GameAssets *assets)
+{
+    // NOTE(Joey): check if we use more memory than say -16 MB from the max
+    // we use a safety region as a soft cap, s.t. there is always some free 
+    // in case new memory gets loaded in 
+    while(assets->MemoryInUse > assets->MemoryMax - assets->MemorySafetyRegion)
+    {
+        /* NOTE(Joey):
+        
+          To determine which assets are the least used, since this threshold is reached
+          use reference counting on the assets. Every time an asset gets loaded increase
+          its reference count (32 bit unsigned integer). Then at this stage; sort all
+          assets based on this reference count (ascending) and delete the first on the 
+          list until the size constraint is reached again. 
+          
+          This seems like a more efficient (and easier to maintain) approach than a 
+          doubly linked list.
+          
+          Note, be sure to lock assets when doing background work (with an asset load 
+          type enum: LOADED|LOCKED|QUEUED etc. Then only evict when assets aren't 
+          being used by background threads. Enum of type asset_state.
+          
+          Then once assets have been cleared; clear ALL reference count values to 0.
+          
+          When assets are being loaded by multithreaded workers; set state to queued.
+          
+          Option: instead of keeping a memory buffer and call it once at the end of 
+          each frame; call EvictAssetsAsNecessary in the AcquireAssetMemory step, 
+          that way there is no need for a buffer; but could partially delay the system?
+          Probably wise to check out both options and select the better of them, 
+          evicting memory when requested seems the best API design.
+          
+        */
+    }
+    
+}
