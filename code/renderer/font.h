@@ -9,6 +9,21 @@
 ** Creative Commons, either version 4 of the License, or (at your
 ** option) any later version.
 *******************************************************************/
+#ifndef FONT_H
+#define FONT_H
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+
+struct game_font
+{
+    stbtt_fontinfo FontInfo;
+    
+    r32 *HorizontalAdvance;
+    r32  LineAdvance;
+    
+    u32 CodePointCount;
+    Texture *CodePoints;
+};
+
+#endif

@@ -1398,7 +1398,11 @@ int CALLBACK WinMain(
 	{
 		OutputDebugStringA("RegisterClass FAILED\n");
 	}
-
-
 	return (0);
 }
+
+// NOTE(Joey): temp hack to fix external linking issues where the win32 compilation
+// unit cannot find the TimingRecords[] declaration as this is declared in voidt.cpp
+// and defined in timing.h (that win32 also indirectly links to via voidt.h)
+// - NOTE(Joey): Not sure how to properly fix this; think of a good solution one day
+timing_record TimingRecords[1];

@@ -38,6 +38,12 @@ struct LoadedSound
     char *Name;    
 };
 
+struct loaded_font
+{
+    game_font Font;
+    char *Name;
+};
+
 struct Asset
 {
     memory_block *Memory;
@@ -50,8 +56,9 @@ struct Asset
     
     union
     {
-        Sound   SoundAsset;
-        Texture TextureAsset;
+        Sound     SoundAsset;
+        Texture   TextureAsset;
+        game_font FontAsset;
     };    
 };
 
@@ -63,6 +70,8 @@ struct GameAssets
     
     LoadedTexture Textures[MAX_ASSETS];
     LoadedSound   Sounds[MAX_ASSETS];   
+    game_font     Font;
+    game_font     DebugFont;
     
     // TODO(Joey): use unified asset loading system for easy load|eviction
     // TODO(Joey): transform unified system to hash table

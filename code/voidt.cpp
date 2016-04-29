@@ -11,6 +11,7 @@
 *******************************************************************/
 #include "voidt.h"
 
+internal void DisplayTimingRecords();
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {   
@@ -88,8 +89,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PreFetchSound(&transientState->Assets, "audio/gun.wav");
         PreFetchSound(&transientState->Assets, "audio/explosion.wav");            
 
-        stbtt_fontinfo font = LoadTrueTypeFont("C:/Windows/Fonts/Calibri.ttf");
-        gameState->letterN = LoadCharacterGlyph(&transientState->TransientArena, font, 'N', 128.0f);
+        // stbtt_fontinfo font = LoadTrueTypeFont("C:/Windows/Fonts/Calibri.ttf");
+        // gameState->letterN = LoadCharacterGlyph(&transientState->TransientArena, font, 'N', 128.0f);
         
         gameState->Music = PlaySound(&gameState->Mixer, GetSound(&transientState->Assets, "audio/music.wav"), 0.0f, 1.0f, true);   
         SetVolume(gameState->Music, 1.0f, 1.0f, 25.5f);
@@ -259,6 +260,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // PrintCPUTiming(0);
     // PrintCPUTiming(1);
     
+    DisplayTimingRecords();
+    
     gameState->TimePassed += input->dtPerFrame;
 }
 
@@ -285,6 +288,7 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
     __m128i *sampleOut = (__m128i*)soundBuffer->Samples;
     for(u32 sampleIndex = 0; sampleIndex < sampleCount4; ++sampleIndex)
     {               
+        TIMING_BLOCK(4);
         __m128 s0 = _mm_load_ps((float*)source0++);
         __m128 s1 = _mm_load_ps((float*)source1++);
 
@@ -304,4 +308,21 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
     }        
     
     EndTempMemory(mixResultMemory);
+}
+
+#if __COUNTER__ == 0
+timing_record TimingRecords[1];
+#else
+timing_record TimingRecords[__COUNTER__ - 1];
+#endif
+
+internal void DisplayTimingRecords()
+{
+    for(u32 i = 0; i < ArrayCount(TimingRecords); ++i)
+    {
+        timing_record *record = TimingRecords + i;
+        PlatformAPI.WriteDebugOutput("Function: %s | cycles: %llu | hits: %d | cycles/hit: %llu\n",
+                                     record->FunctionName, record->CycleCount, record->HitCount, 
+                                     (u64)SafeRatio((r64)record->CycleCount, (r64)record->HitCount)); 
+    }   
 }

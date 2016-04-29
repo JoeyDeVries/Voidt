@@ -56,18 +56,21 @@ internal void PushTexture(RenderQueue *queue,
                           vector2D basisY, 
                           vector4D color)
 {
-    Assert(queue->RenderCount + 1 < queue->MaxRenderCount);
-    RenderQueueItem *renderItem = queue->RenderItems + queue->RenderCount;
-    
-    renderItem->Position = position;
-    renderItem->Depth    = depth;
-    renderItem->Basis[0] = basisX;
-    renderItem->Basis[1] = basisY;
-    renderItem->Size     = size;
-    renderItem->Texture  = texture;
-    renderItem->Color    = color;
-    
-    queue->RenderCount += 1;
+    if(texture && texture->Texels)
+    {
+        Assert(queue->RenderCount + 1 < queue->MaxRenderCount);
+        RenderQueueItem *renderItem = queue->RenderItems + queue->RenderCount;
+        
+        renderItem->Position = position;
+        renderItem->Depth    = depth;
+        renderItem->Basis[0] = basisX;
+        renderItem->Basis[1] = basisY;
+        renderItem->Size     = size;
+        renderItem->Texture  = texture;
+        renderItem->Color    = color;
+        
+        queue->RenderCount += 1;
+    }
 }
 
 internal void PushTexture(RenderQueue *queue, 

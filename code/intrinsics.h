@@ -39,6 +39,22 @@ inline real32 Max(real32 a, real32 b)
     return a >= b ? a : b;
 }
 
+inline real32 SafeRatio(r32 a, r32 b)
+{
+    if(b == 0.0f)
+        return 0.0f;
+    
+    return a / b;
+}
+
+inline real64 SafeRatio(r64 a, r64 b)
+{
+    if(b == 0.0f)
+        return 0.0f;
+    
+    return a / b;
+}
+
 inline uint32 RotateLeft(uint32 value, uint32 amount)
 {
 #if COMPILER_MSVC

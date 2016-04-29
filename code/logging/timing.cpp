@@ -9,6 +9,7 @@
 ** Creative Commons, either version 4 of the License, or (at your
 ** option) any later version.
 *******************************************************************/
+
 void BeginCPUTiming(uint32 id)
 {
     Assert(id < ArrayCount(_CPUPerformanceBuffer));
@@ -34,3 +35,5 @@ void PrintCPUTiming(uint32 id)
                                  _CPUPerformanceBuffer[id].TotalCycles / _CPUPerformanceBuffer[id].HitCount); 
     _CPUPerformanceBuffer[id] = {};
 }
+
+

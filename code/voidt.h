@@ -21,18 +21,18 @@
 #include "intrinsics.h"
 #include "math/math.h"
 
-#include "logging/cpu_timing.h"
-#include "logging/cpu_timing.cpp"
+#include "logging/timing.h"
+#include "logging/timing.cpp"
 
 #include "common/random.cpp"
 #include "renderer/renderer.h"
 #include "renderer/renderer.cpp"
 #include "audio/sound.h"
 #include "audio/sound.cpp"
+#include "renderer/font.h"
+#include "renderer/font.cpp"
 #include "common/asset.h"
 #include "common/asset.cpp"
-#include "renderer/text.h"
-#include "renderer/text.cpp"
 
 #include "entities/entity.h"
 
