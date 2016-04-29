@@ -321,8 +321,14 @@ internal void DisplayTimingRecords()
     for(u32 i = 0; i < ArrayCount(TimingRecords); ++i)
     {
         timing_record *record = TimingRecords + i;
-        PlatformAPI.WriteDebugOutput("Function: %s | cycles: %llu | hits: %d | cycles/hit: %llu\n",
-                                     record->FunctionName, record->CycleCount, record->HitCount, 
-                                     (u64)SafeRatio((r64)record->CycleCount, (r64)record->HitCount)); 
+        
+        // NOTE(Joey): _InterlockedExchange returns original value
+        u32 cycleCount = _InterlockedExchange((volatile long *)&record->CycleCount, 0);
+        u32 hitCount   = _InterlockedExchange((volatile long *)&record->HitCount, 0);
+        
+        PlatformAPI.WriteDebugOutput("%24s(%3d) | %12llucy | %5dh | %10llucy/h\n",
+                                     record->FunctionName, record->LineNumber, cycleCount, hitCount, 
+                                     (u64)SafeRatio((r64)cycleCount, (r64)hitCount)); 
+                                     
     }   
 }

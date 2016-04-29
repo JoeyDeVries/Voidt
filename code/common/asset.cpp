@@ -66,6 +66,7 @@ void DoBackgroundSoundLoadWork(platform_work_queue *queue, void* data)
 
 internal Texture* GetTexture(GameAssets *assets, char *name, bool forceLoad = false)
 {
+    TIMING_BLOCK();
     Texture *texture = 0;
     for(uint32 i = 0; i < assets->LoadedTextureCount; ++i)
     {
@@ -112,6 +113,7 @@ internal Texture* GetTexture(GameAssets *assets, char *name, bool forceLoad = fa
 
 internal Sound* GetSound(GameAssets *assets, char *name, bool forceLoad = false)
 {
+    TIMING_BLOCK();
     Sound *sound = 0;
     for(uint32 i = 0; i < assets->LoadedSoundCount; ++i)
     {

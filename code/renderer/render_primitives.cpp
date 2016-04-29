@@ -62,6 +62,7 @@ internal void RenderTexture_(Texture *target,
 {
     // TIMING(0): Entire draw call.
     // BeginCPUTiming(0); 
+    TIMING_BLOCK();
     
      // NOTE(Joey): calculate scaled coordinate basis
     vector2D axisX = size.x * basisX;
@@ -186,7 +187,6 @@ internal void RenderTexture_(Texture *target,
             {
                 // TIMING(1): Per pixel CPU timing
                 // BeginCPUTiming(1);
-                TIMING_BLOCK(4);
 
                 // NOTE(Joey): pre-fetch destination memory at start
                 __m128i originalDest = _mm_loadu_si128((__m128i *)dest);

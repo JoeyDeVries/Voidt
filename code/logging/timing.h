@@ -48,23 +48,26 @@ timing_record TimingRecords[];
 struct timing_block
 {
     timing_record *m_Record;
+    u64            m_StartCycles;
     
     timing_block(int counter, char *fileName, char *function, int line, int count = 1)
-    {
-        m_Record = TimingRecords + counter;
-    
-        // NOTE(Joey): reduce count by current clock cycle count so we only add the difference in the destructor.
-        m_Record->CycleCount -= __rdtsc();
+    {       
+        m_Record = TimingRecords + counter;            
+        
+        _InterlockedExchangeAdd((volatile long *)&m_Record->HitCount, count);
         
         m_Record->FileName     = fileName;
         m_Record->FunctionName = function;
         m_Record->LineNumber   = line;
-        m_Record->HitCount    += count;
+        
+        // NOTE(Joey): set CycleCount to negative s.t. adding it at the end results in the (positive) difference
+        m_StartCycles = __rdtsc();
     }
     
     ~timing_block()
     {
-        m_Record->CycleCount += __rdtsc();
+        u64 delta = __rdtsc() - m_StartCycles;
+        _InterlockedExchangeAdd((volatile long *)&m_Record->CycleCount, (long)delta);
     }
 };
 
